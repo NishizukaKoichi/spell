@@ -1,6 +1,10 @@
+pub mod user;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+pub use user::{User, Session, GitHubUser, GitHubAccessTokenResponse};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Cast {
@@ -10,6 +14,7 @@ pub struct Cast {
     pub status: String,
     pub result: Option<serde_json::Value>,
     pub error_code: Option<String>,
+    pub user_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 

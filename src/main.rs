@@ -1,5 +1,6 @@
 mod db;
 mod errors;
+mod middleware;
 mod models;
 mod routes;
 mod wasm;
@@ -35,6 +36,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(app_data.clone())
             .route("/healthz", web::get().to(healthz))
+            .configure(routes::auth::configure)
             .service(web::scope("/v1").configure(routes::cast::configure))
     })
     .bind(("0.0.0.0", 8080))?
