@@ -1,13 +1,16 @@
-FROM rust:1.75 as builder
+FROM rust:latest as builder
 
 WORKDIR /app
+
+# Use nightly for edition2024 support
+RUN rustup default nightly
 
 # Copy Cargo files
 COPY Cargo.toml ./
 COPY src ./src
 
 # Build release binary
-RUN cargo build --release
+RUN cargo +nightly build --release
 
 # Runtime stage
 FROM debian:bookworm-slim

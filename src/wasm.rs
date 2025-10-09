@@ -1,7 +1,6 @@
 use crate::errors::CastError;
 use serde_json::Value;
 use std::path::PathBuf;
-use std::sync::Arc;
 use wasmtime::*;
 
 pub struct WasmRuntime {
@@ -11,9 +10,7 @@ pub struct WasmRuntime {
 
 impl WasmRuntime {
     pub fn new(module_path: &str) -> Self {
-        let mut config = Config::new();
-        config.consume_fuel(true);
-
+        let config = Config::new();
         let engine = Engine::new(&config).expect("Failed to create WASM engine");
 
         Self {
@@ -33,13 +30,10 @@ impl WasmRuntime {
             .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to load module: {}", e)))?;
 
         let mut store = Store::new(&self.engine, ());
-        store
-            .add_fuel(100_000_000)
-            .map_err(|e| CastError::InternalError(format!("Failed to add fuel: {}", e)))?;
 
         let linker = Linker::new(&self.engine);
 
-        let instance = linker
+        let _instance = linker
             .instantiate(&mut store, &module)
             .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to instantiate: {}", e)))?;
 
@@ -53,7 +47,7 @@ impl WasmRuntime {
             "spell": spell_name,
             "input": input,
             "output": "WASM execution successful (mock)",
-            "fuel_consumed": store.fuel_consumed().unwrap_or(0)
+            "status": "ok"
         }))
     }
 }
