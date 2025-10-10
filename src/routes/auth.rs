@@ -1,11 +1,10 @@
-use crate::models::{GitHubAccessTokenResponse, GitHubUser, Session, User};
+use crate::models::{GitHubAccessTokenResponse, GitHubUser, User};
 use crate::AppState;
 use actix_web::{web, HttpResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
 use serde::Deserialize;
 use std::env;
-use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct GitHubCallbackQuery {

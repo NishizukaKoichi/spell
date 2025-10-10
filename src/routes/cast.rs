@@ -1,33 +1,54 @@
 use crate::errors::CastError;
-use crate::models::{Cast, CastRequest, CastResponse};
+use crate::models::{CastRequest, CastResponse, User};
 use crate::AppState;
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
+use actix_web_httpauth::middleware::HttpAuthentication;
 use uuid::Uuid;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/cast").route(web::post().to(cast_spell)));
+    let auth = HttpAuthentication::bearer(crate::middleware::auth::validator);
+    cfg.service(
+        web::resource("/cast")
+            .wrap(auth)
+            .route(web::post().to(cast_spell)),
+    );
 }
 
 async fn cast_spell(
     state: web::Data<AppState>,
+    http_req: HttpRequest,
     req: web::Json<CastRequest>,
 ) -> Result<HttpResponse, CastError> {
+    // Get authenticated user
+    let user_id = {
+        let ext = http_req.extensions();
+        ext.get::<User>()
+            .ok_or_else(|| CastError::WasmExecutionFailed("User not authenticated".to_string()))?
+            .id
+    };
+
     let cast_id = Uuid::new_v4();
     let spell_name = &req.spell_name;
     let payload = &req.payload;
 
-    log::info!("Cast {} starting for spell: {}", cast_id, spell_name);
+    log::info!(
+        "Cast {} starting for spell: {} by user {}",
+        cast_id,
+        spell_name,
+        user_id
+    );
 
-    // Insert initial record
+    // Insert initial record with user_id
     sqlx::query(
         r#"
-        INSERT INTO casts (id, spell_name, payload, status, created_at)
-        VALUES ($1, $2, $3, 'QUEUED', NOW())
+        INSERT INTO casts (id, spell_name, payload, status, user_id, created_at)
+        VALUES ($1, $2, $3, 'QUEUED', $4, NOW())
         "#,
     )
     .bind(&cast_id)
     .bind(spell_name)
     .bind(payload)
+    .bind(&user_id)
     .execute(&state.db)
     .await?;
 

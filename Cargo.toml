@@ -21,6 +21,15 @@ actix-session = { version = "0.9", features = ["cookie-session"] }
 actix-web-httpauth = "0.8"
 base64 = "0.21"
 rand = "0.8"
+argon2 = "0.5"
+redis = { version = "0.25", features = ["tokio-comp"] }
+deadpool-redis = "0.15"
+futures = "0.3"
+async-stripe = { version = "0.37", features = ["runtime-tokio-hyper-rustls", "webhook-events", "checkout"] }
+prometheus = "0.13"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
 
 [profile.release]
 opt-level = 3
