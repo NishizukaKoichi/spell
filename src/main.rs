@@ -3,12 +3,18 @@ mod errors;
 mod middleware;
 mod models;
 mod routes;
+mod services;
 mod wasm;
 mod utils;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
 use std::env;
+use std::sync::Arc;
+use parking_lot::Mutex;
+
+use services::stripe_service::StripeService;
+use routes::metrics::Metrics;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -33,11 +39,27 @@ async fn main() -> std::io::Result<()> {
     log::info!("Initializing WASM runtime...");
     let wasm_runtime = wasm::WasmRuntime::new(&wasm_path);
 
+    log::info!("Initializing Stripe service...");
+    let stripe_service = StripeService::new();
+    let stripe_enabled = stripe_service.is_enabled();
+    let stripe_data = if stripe_enabled {
+        Some(stripe_service)
+    } else {
+        log::warn!("Stripe service disabled - billing features unavailable");
+        None
+    };
+
+    log::info!("Initializing metrics...");
+    let metrics = Arc::new(Mutex::new(Metrics::new()));
+
     let app_data = web::Data::new(AppState {
         db: pool,
         wasm: wasm_runtime,
         redis: redis_pool.clone(),
+        stripe: stripe_data,
     });
+
+    let metrics_data = web::Data::new(metrics.clone());
 
     log::info!("Starting server on 0.0.0.0:8080");
 
@@ -45,12 +67,16 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::rate_limit::RateLimit::new(redis_pool.clone()))
             .app_data(app_data.clone())
+            .app_data(metrics_data.clone())
             .route("/healthz", web::get().to(healthz))
+            .configure(routes::metrics::configure)
             .configure(routes::auth::configure)
             .service(
                 web::scope("/v1")
                     .configure(routes::cast::configure)
-                    .configure(routes::keys::configure),
+                    .configure(routes::keys::configure)
+                    .configure(routes::billing::configure)
+                    .configure(routes::budgets::configure),
             )
     })
     .bind(("0.0.0.0", 8080))?
@@ -69,4 +95,5 @@ pub struct AppState {
     pub db: sqlx::PgPool,
     pub wasm: wasm::WasmRuntime,
     pub redis: deadpool_redis::Pool,
+    pub stripe: Option<StripeService>,
 }

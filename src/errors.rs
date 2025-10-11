@@ -2,6 +2,8 @@ use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use serde::Serialize;
 use std::fmt;
 
+use crate::models::billing::BudgetExceededError;
+
 #[derive(Debug, Serialize)]
 pub enum ErrorCategory {
     #[serde(rename = "NETWORK_RETRYABLE")]
@@ -22,6 +24,7 @@ pub enum CastError {
     WasmTimeout,
     InvalidInput(String),
     InternalError(String),
+    BudgetExceeded(BudgetExceededError),
 }
 
 impl CastError {
@@ -33,6 +36,7 @@ impl CastError {
             CastError::WasmTimeout => ErrorCategory::TransientRuntime,
             CastError::InvalidInput(_) => ErrorCategory::PermConfig,
             CastError::InternalError(_) => ErrorCategory::NetworkRetryable,
+            CastError::BudgetExceeded(_) => ErrorCategory::PermConfig,
         }
     }
 
@@ -44,6 +48,7 @@ impl CastError {
             CastError::WasmTimeout => "WASM_TIMEOUT",
             CastError::InvalidInput(_) => "INVALID_INPUT",
             CastError::InternalError(_) => "INTERNAL_ERROR",
+            CastError::BudgetExceeded(_) => "BUDGET_EXCEEDED",
         }
     }
 }
@@ -57,6 +62,7 @@ impl fmt::Display for CastError {
             CastError::WasmTimeout => write!(f, "WASM execution timeout"),
             CastError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             CastError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+            CastError::BudgetExceeded(err) => write!(f, "Budget exceeded: {} cents spent, limit is {} cents", err.spent_cents, err.hard_limit_cents),
         }
     }
 }
@@ -70,22 +76,31 @@ impl ResponseError for CastError {
             CastError::WasmTimeout => StatusCode::REQUEST_TIMEOUT,
             CastError::InvalidInput(_) => StatusCode::BAD_REQUEST,
             CastError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            CastError::BudgetExceeded(_) => StatusCode::PAYMENT_REQUIRED,
         }
     }
 
     fn error_response(&self) -> HttpResponse {
-        #[derive(Serialize)]
-        struct ErrorResponse {
-            error: String,
-            error_code: String,
-            category: ErrorCategory,
-        }
+        match self {
+            CastError::BudgetExceeded(budget_err) => {
+                // Return the full budget exceeded error with details
+                HttpResponse::build(self.status_code()).json(budget_err)
+            }
+            _ => {
+                #[derive(Serialize)]
+                struct ErrorResponse {
+                    error: String,
+                    error_code: String,
+                    category: ErrorCategory,
+                }
 
-        HttpResponse::build(self.status_code()).json(ErrorResponse {
-            error: self.to_string(),
-            error_code: self.error_code().to_string(),
-            category: self.category(),
-        })
+                HttpResponse::build(self.status_code()).json(ErrorResponse {
+                    error: self.to_string(),
+                    error_code: self.error_code().to_string(),
+                    category: self.category(),
+                })
+            }
+        }
     }
 }
 

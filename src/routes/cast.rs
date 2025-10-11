@@ -1,5 +1,6 @@
 use crate::errors::CastError;
 use crate::models::{CastRequest, CastResponse, User};
+use crate::services::budget_service::BudgetService;
 use crate::AppState;
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
 use actix_web_httpauth::middleware::HttpAuthentication;
@@ -26,6 +27,12 @@ async fn cast_spell(
             .ok_or_else(|| CastError::WasmExecutionFailed("User not authenticated".to_string()))?
             .id
     };
+
+    // Check budget hard limit BEFORE execution
+    if let Err(budget_err) = BudgetService::check_hard_limit(&user_id, &state.db).await {
+        log::warn!("Budget exceeded for user {}: {:?}", user_id, budget_err);
+        return Err(CastError::BudgetExceeded(budget_err));
+    }
 
     let cast_id = Uuid::new_v4();
     let spell_name = &req.spell_name;
@@ -69,6 +76,19 @@ async fn cast_spell(
             .await?;
 
             log::info!("Cast {} completed successfully", cast_id);
+
+            // Record usage and cost
+            let cost_cents = std::env::var("COST_PER_CAST_CENTS")
+                .ok()
+                .and_then(|v| v.parse::<i32>().ok())
+                .unwrap_or(0);
+
+            if cost_cents > 0 {
+                if let Err(e) = BudgetService::record_usage(&user_id, cost_cents, &cast_id, &state.db).await {
+                    log::error!("Failed to record usage for cast {}: {}", cast_id, e);
+                    // Continue anyway - don't fail the cast
+                }
+            }
 
             CastResponse {
                 id: cast_id,
