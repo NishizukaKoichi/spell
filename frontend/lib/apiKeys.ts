@@ -1,0 +1,80 @@
+import useSWR from 'swr';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://spell-platform.fly.dev';
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface CreateApiKeyResponse {
+  id: string;
+  name: string;
+  api_key: string;
+}
+
+const fetcher = (url: string) =>
+  fetch(url, {
+    credentials: 'include',
+  }).then((res) => {
+    if (!res.ok) {
+      throw new Error('Failed to fetch API keys');
+    }
+    return res.json();
+  });
+
+export function useApiKeys() {
+  const { data, error, isLoading, mutate } = useSWR<ApiKey[]>(
+    `${API_URL}/api-keys`,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+    }
+  );
+
+  const createApiKey = async (name: string): Promise<CreateApiKeyResponse> => {
+    const response = await fetch(`${API_URL}/api-keys`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ name }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to create API key' }));
+      throw new Error(error.error || 'Failed to create API key');
+    }
+
+    const newKey = await response.json();
+    mutate();
+    return newKey;
+  };
+
+  const deleteApiKey = async (id: string) => {
+    const response = await fetch(`${API_URL}/api-keys/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete API key' }));
+      throw new Error(error.error || 'Failed to delete API key');
+    }
+
+    mutate();
+  };
+
+  return {
+    apiKeys: data ?? [],
+    isLoading,
+    isError: !!error,
+    error,
+    createApiKey,
+    deleteApiKey,
+    mutate,
+  };
+}
