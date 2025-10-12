@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+// Future implementation: Stripe billing integration
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct BillingAccount {
     pub user_id: Uuid,
@@ -14,6 +16,8 @@ pub struct BillingAccount {
     pub updated_at: DateTime<Utc>,
 }
 
+// Future implementation: Usage tracking
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UsageCounter {
     pub user_id: Uuid,
