@@ -20,9 +20,7 @@ impl Default for StripeService {
 
 impl StripeService {
     pub fn new() -> Self {
-        let client = std::env::var("STRIPE_SECRET_KEY")
-            .ok()
-            .map(Client::new);
+        let client = std::env::var("STRIPE_SECRET_KEY").ok().map(Client::new);
 
         let webhook_secret = std::env::var("STRIPE_WEBHOOK_SECRET").ok();
 
@@ -156,9 +154,7 @@ impl StripeService {
             .id()
             .to_string();
 
-        log::info!(
-            "Checkout completed for user {user_id} with customer {customer_id}"
-        );
+        log::info!("Checkout completed for user {user_id} with customer {customer_id}");
 
         // Insert or update billing account
         sqlx::query(
@@ -193,9 +189,7 @@ impl StripeService {
             _ => "inactive",
         };
 
-        log::info!(
-            "Subscription updated for customer {customer_id} to status {status}"
-        );
+        log::info!("Subscription updated for customer {customer_id} to status {status}");
 
         sqlx::query(
             r#"

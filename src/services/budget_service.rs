@@ -125,9 +125,7 @@ impl BudgetService {
         .execute(db)
         .await?;
 
-        log::debug!(
-            "Recorded usage for user {user_id}: {cost_cents} cents for cast {cast_id}"
-        );
+        log::debug!("Recorded usage for user {user_id}: {cost_cents} cents for cast {cast_id}");
 
         Ok(())
     }

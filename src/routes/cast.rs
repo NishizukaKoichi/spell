@@ -38,9 +38,7 @@ async fn cast_spell(
     let spell_name = &req.spell_name;
     let payload = &req.payload;
 
-    log::info!(
-        "Cast {cast_id} starting for spell: {spell_name} by user {user_id}"
-    );
+    log::info!("Cast {cast_id} starting for spell: {spell_name} by user {user_id}");
 
     // Insert initial record with user_id
     sqlx::query(
