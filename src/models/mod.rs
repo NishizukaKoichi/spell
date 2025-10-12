@@ -9,6 +9,8 @@ use uuid::Uuid;
 pub use apikey::{ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeyResponse};
 pub use user::{GitHubAccessTokenResponse, GitHubUser, Session, User};
 
+// Future implementation: Cast history tracking
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Cast {
     pub id: Uuid,
