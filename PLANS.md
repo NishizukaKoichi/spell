@@ -786,22 +786,44 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 4. フロントエンド `/dashboard` へリダイレクト
 5. `useAuth()` が `/auth/me` を呼び出して認証状態確認
 
-#### 5.3 カード登録（Stripe SetupIntent）💳
+#### 5.3 カード登録（Stripe SetupIntent）💳 ✅
 
-**バックエンド**:
-1. [ ] `POST /v1/billing/setup-intent` エンドポイント実装
-   - Stripe SetupIntent作成
-   - `client_secret` 返却
-2. [ ] `POST /v1/billing/payment-method` エンドポイント実装
-   - `payment_method_id` 保存
-   - `billing_accounts.payment_method_id` 更新
-   - 初期上限 `hard_limit_cents = 5000` 自動設定
+**完了日時**: 2025-10-12 22:15
+**コミット**: `6184891` - "feat: Phase 5.3 - カード登録(Stripe SetupIntent)完了"
 
-**フロントエンド**:
-1. [ ] カード登録フォーム実装（Stripe Elements）
-2. [ ] SetupIntent フロー統合
-3. [ ] 成功時の confirmation UI
-4. [ ] エラーハンドリング
+**バックエンド実装** (src/routes/billing.rs, src/services/stripe_service.rs):
+- ✅ `POST /setup-intent` エンドポイント実装
+  - Stripe SetupIntent作成
+  - `client_secret` 返却
+- ✅ `POST /payment-method` エンドポイント実装
+  - `payment_method_id` 保存
+  - `billing_accounts.payment_method_id` 更新
+  - 初期上限 `hard_limit_cents = 5000` 自動設定
+- ✅ Cookie認証用 `authenticate_from_cookie()` 追加 (src/middleware/auth.rs)
+- ✅ StripeService に 3つのメソッド追加:
+  - `get_or_create_customer()`: Stripe顧客の取得/作成
+  - `create_setup_intent()`: SetupIntent作成
+  - `attach_payment_method()`: 支払い方法の関連付け
+
+**マイグレーション** (migrations/0005_payment_methods.sql):
+- ✅ billing_accounts に `payment_method_id` カラム追加
+- ✅ budgets テーブル PRIMARY KEY 修正 (user_id, period)
+
+**フロントエンド実装**:
+- ✅ `/dashboard/billing` ページ実装
+- ✅ CardSetupForm コンポーネント (Stripe Elements)
+- ✅ SetupIntent フロー統合
+- ✅ 成功時のリダイレクト処理
+- ✅ エラーハンドリング
+- ✅ @stripe/stripe-js, @stripe/react-stripe-js インストール
+
+**カード登録フロー**:
+1. ユーザーが `/dashboard/billing` で「Add Payment Method」クリック
+2. `POST /setup-intent` → Stripe SetupIntent 作成
+3. Stripe Elements でカード情報入力
+4. `stripe.confirmSetup()` で確認
+5. `POST /payment-method` で payment_method_id 保存
+6. 初期上限 $50 自動設定
 
 #### 5.4 上限変更UI 💰
 
