@@ -289,7 +289,7 @@ impl StripeService {
             .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
 
         let mut params = CreateSetupIntent::new();
-        params.customer = Some(stripe::CustomerId::from(customer_id));
+        params.customer = Some(customer_id.parse()?);
         params.payment_method_types = Some(vec!["card".to_string()]);
 
         let setup_intent = SetupIntent::create(client, params).await?;
@@ -310,18 +310,17 @@ impl StripeService {
 
         let payment_method = PaymentMethod::retrieve(
             client,
-            &stripe::PaymentMethodId::from(payment_method_id),
+            &payment_method_id.parse()?,
             &[],
         )
         .await?;
 
         // Attach payment method to customer
-        let mut params = stripe::AttachPaymentMethod::new();
         PaymentMethod::attach(
             client,
             &payment_method.id,
             stripe::AttachPaymentMethod {
-                customer: stripe::CustomerId::from(customer_id),
+                customer: customer_id.parse()?,
             },
         )
         .await?;
@@ -335,11 +334,31 @@ impl StripeService {
 
         Customer::update(
             client,
-            &stripe::CustomerId::from(customer_id),
+            &customer_id.parse()?,
             update_params,
         )
         .await?;
 
         Ok(())
+    }
+
+    /// Get payment method details (card last 4, brand, etc.)
+    pub async fn get_payment_method(
+        &self,
+        payment_method_id: &str,
+    ) -> Result<stripe::PaymentMethod, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        let payment_method = PaymentMethod::retrieve(
+            client,
+            &payment_method_id.parse()?,
+            &[],
+        )
+        .await?;
+
+        Ok(payment_method)
     }
 }

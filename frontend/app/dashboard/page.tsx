@@ -1,3 +1,7 @@
+'use client';
+
+import UsageDisplay from '@/components/UsageDisplay';
+
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
@@ -8,50 +12,8 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Usage Overview Card */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Monthly Spend
-            </h3>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-bold">$0.00</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              of $50.00 limit
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              API Calls
-            </h3>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-bold">0</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              This month
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Remaining Budget
-            </h3>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-bold">$50.00</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              100% available
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Usage Overview */}
+      <UsageDisplay />
 
       {/* Quick Actions */}
       <div className="rounded-lg border border-border bg-card p-6">

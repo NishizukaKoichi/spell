@@ -3,7 +3,8 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use serde::Deserialize;
 
 use crate::middleware::auth::authenticate_from_cookie;
-use crate::models::User;
+use crate::models::{billing::Budget, User};
+use crate::services::budget_service::BudgetService;
 use crate::AppState;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -21,6 +22,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     .service(
         web::resource("/payment-method")
             .route(web::post().to(attach_payment_method))
+            .route(web::get().to(get_payment_method))
+    )
+    .service(
+        web::resource("/usage")
+            .route(web::get().to(get_usage_cookie))
     )
     .service(web::resource("/webhooks/stripe").route(web::post().to(stripe_webhook)));
 }
@@ -236,5 +242,105 @@ async fn stripe_webhook(
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "status": "success"
+    })))
+}
+
+/// Get payment method details (cookie authentication)
+async fn get_payment_method(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = authenticate_from_cookie(&http_req, &state.db)
+        .await
+        .ok_or_else(|| actix_web::error::ErrorUnauthorized("Not authenticated"))?;
+
+    // Get billing account with payment method
+    let billing_account: Option<(String,)> = sqlx::query_as(
+        r#"
+        SELECT payment_method_id FROM billing_accounts WHERE user_id = $1
+        "#,
+    )
+    .bind(user.id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to fetch billing account: {e}");
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
+
+    let payment_method_id = match billing_account {
+        Some((pm_id,)) => pm_id,
+        None => {
+            return Ok(HttpResponse::NotFound().json(serde_json::json!({
+                "error": "No payment method configured"
+            })));
+        }
+    };
+
+    // Get payment method details from Stripe
+    let stripe_service = state
+        .stripe
+        .as_ref()
+        .ok_or_else(|| actix_web::error::ErrorServiceUnavailable("Billing not configured"))?;
+
+    let payment_method = stripe_service
+        .get_payment_method(&payment_method_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to get payment method from Stripe: {e}");
+            actix_web::error::ErrorInternalServerError("Failed to get payment method")
+        })?;
+
+    // Extract card details
+    let card = payment_method.card.as_ref().ok_or_else(|| {
+        actix_web::error::ErrorInternalServerError("Payment method is not a card")
+    })?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "brand": card.brand,
+        "last4": card.last4,
+        "exp_month": card.exp_month,
+        "exp_year": card.exp_year,
+    })))
+}
+
+/// Get usage stats (cookie authentication)
+async fn get_usage_cookie(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = authenticate_from_cookie(&http_req, &state.db)
+        .await
+        .ok_or_else(|| actix_web::error::ErrorUnauthorized("Not authenticated"))?;
+
+    // Get budget to determine period
+    let budget: Option<Budget> = sqlx::query_as(
+        r#"
+        SELECT * FROM budgets WHERE user_id = $1 AND period = 'monthly'
+        "#,
+    )
+    .bind(user.id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to fetch budget: {e}");
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
+
+    let period = "monthly";
+    let (total_calls, total_cost) = BudgetService::get_current_usage(&user.id, period, &state.db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to get usage: {e}");
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "user_id": user.id,
+        "period": period,
+        "total_calls": total_calls,
+        "total_cost_cents": total_cost,
+        "hard_limit_cents": budget.as_ref().and_then(|b| b.hard_limit_cents),
+        "soft_limit_cents": budget.as_ref().and_then(|b| b.soft_limit_cents),
     })))
 }
