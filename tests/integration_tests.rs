@@ -10,8 +10,8 @@
 // For true E2E tests with real Stripe/GitHub OAuth/Database, use:
 //   scripts/e2e_phase2.sh against deployed environment
 
-use actix_web::{test, web, App, HttpResponse};
 use actix_web::http::{header, StatusCode};
+use actix_web::{test, web, App, HttpResponse};
 
 // ============================================================================
 // Mock Endpoints (simplified versions of real handlers)
@@ -58,15 +58,11 @@ async fn mock_get_budget(state: web::Data<MockBudgetState>) -> HttpResponse {
     }))
 }
 
-async fn mock_create_budget(
-    body: web::Json<serde_json::Value>,
-) -> HttpResponse {
+async fn mock_create_budget(body: web::Json<serde_json::Value>) -> HttpResponse {
     HttpResponse::Ok().json(body.into_inner())
 }
 
-async fn mock_update_budget(
-    body: web::Json<serde_json::Value>,
-) -> HttpResponse {
+async fn mock_update_budget(body: web::Json<serde_json::Value>) -> HttpResponse {
     HttpResponse::Ok().json(body.into_inner())
 }
 
@@ -82,9 +78,7 @@ async fn mock_get_usage(state: web::Data<MockBudgetState>) -> HttpResponse {
     }))
 }
 
-async fn mock_cast_with_budget(
-    state: web::Data<MockBudgetState>,
-) -> HttpResponse {
+async fn mock_cast_with_budget(state: web::Data<MockBudgetState>) -> HttpResponse {
     // Check if budget exceeded
     if state.current_usage_cents >= state.hard_limit_cents {
         return HttpResponse::PaymentRequired().json(serde_json::json!({
@@ -106,23 +100,18 @@ async fn mock_cast_with_budget(
 #[actix_rt::test]
 async fn test_health_endpoint_returns_ok_status() {
     // Arrange
-    let app = test::init_service(
-        App::new()
-            .route("/healthz", web::get().to(mock_healthz))
-    ).await;
+    let app = test::init_service(App::new().route("/healthz", web::get().to(mock_healthz))).await;
 
     // Act
-    let req = test::TestRequest::get()
-        .uri("/healthz")
-        .to_request();
+    let req = test::TestRequest::get().uri("/healthz").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert
     assert_eq!(resp.status(), StatusCode::OK);
 
     let body = test::read_body(resp).await;
-    let json: serde_json::Value = serde_json::from_slice(&body)
-        .expect("Response should be valid JSON");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("Response should be valid JSON");
 
     assert_eq!(json["status"], "ok");
     assert!(json.get("version").is_some(), "Should include version");
@@ -131,15 +120,10 @@ async fn test_health_endpoint_returns_ok_status() {
 #[actix_rt::test]
 async fn test_metrics_endpoint_returns_prometheus_format() {
     // Arrange
-    let app = test::init_service(
-        App::new()
-            .route("/metrics", web::get().to(mock_metrics))
-    ).await;
+    let app = test::init_service(App::new().route("/metrics", web::get().to(mock_metrics))).await;
 
     // Act
-    let req = test::TestRequest::get()
-        .uri("/metrics")
-        .to_request();
+    let req = test::TestRequest::get().uri("/metrics").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert
@@ -149,9 +133,18 @@ async fn test_metrics_endpoint_returns_prometheus_format() {
     let metrics = String::from_utf8(body.to_vec()).expect("Should be valid UTF-8");
 
     // Verify Prometheus metrics format
-    assert!(metrics.contains("spell_cast_total"), "Should include cast metric");
-    assert!(metrics.contains("spell_budget_blocked_total"), "Should include budget blocked metric");
-    assert!(metrics.contains("spell_rate_limited_total"), "Should include rate limit metric");
+    assert!(
+        metrics.contains("spell_cast_total"),
+        "Should include cast metric"
+    );
+    assert!(
+        metrics.contains("spell_budget_blocked_total"),
+        "Should include budget blocked metric"
+    );
+    assert!(
+        metrics.contains("spell_rate_limited_total"),
+        "Should include rate limit metric"
+    );
     assert!(metrics.contains("# HELP"), "Should include HELP comments");
     assert!(metrics.contains("# TYPE"), "Should include TYPE comments");
 }
@@ -181,13 +174,12 @@ async fn test_full_budget_enforcement_flow() {
             .route("/v1/budgets", web::put().to(mock_update_budget))
             .route("/v1/budgets", web::delete().to(mock_delete_budget))
             .route("/v1/budgets/usage", web::get().to(mock_get_usage))
-            .route("/v1/cast", web::post().to(mock_cast_with_budget))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget)),
+    )
+    .await;
 
     // Step 1: Get budget
-    let req = test::TestRequest::get()
-        .uri("/v1/budgets")
-        .to_request();
+    let req = test::TestRequest::get().uri("/v1/budgets").to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::OK, "Should get budget");
 
@@ -234,8 +226,9 @@ async fn test_full_budget_enforcement_flow() {
     let app_exceeded = test::init_service(
         App::new()
             .app_data(exceeded_state)
-            .route("/v1/cast", web::post().to(mock_cast_with_budget))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget)),
+    )
+    .await;
 
     let req = test::TestRequest::post()
         .uri("/v1/cast")
@@ -245,8 +238,11 @@ async fn test_full_budget_enforcement_flow() {
         }))
         .to_request();
     let resp = test::call_service(&app_exceeded, req).await;
-    assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED,
-               "Should return HTTP 402 when budget exceeded");
+    assert_eq!(
+        resp.status(),
+        StatusCode::PAYMENT_REQUIRED,
+        "Should return HTTP 402 when budget exceeded"
+    );
 
     // Step 6: Update budget to higher limit
     let req = test::TestRequest::put()
@@ -273,8 +269,9 @@ async fn test_full_budget_enforcement_flow() {
     let app_updated = test::init_service(
         App::new()
             .app_data(updated_state)
-            .route("/v1/cast", web::post().to(mock_cast_with_budget))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget)),
+    )
+    .await;
 
     let req = test::TestRequest::post()
         .uri("/v1/cast")
@@ -284,8 +281,11 @@ async fn test_full_budget_enforcement_flow() {
         }))
         .to_request();
     let resp = test::call_service(&app_updated, req).await;
-    assert_eq!(resp.status(), StatusCode::OK,
-               "Cast should work after budget increase");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "Cast should work after budget increase"
+    );
 }
 
 #[actix_rt::test]
@@ -299,39 +299,42 @@ async fn test_budget_cleanup_returns_204() {
     let app = test::init_service(
         App::new()
             .app_data(state)
-            .route("/v1/budgets", web::delete().to(mock_delete_budget))
-    ).await;
+            .route("/v1/budgets", web::delete().to(mock_delete_budget)),
+    )
+    .await;
 
-    let req = test::TestRequest::delete()
-        .uri("/v1/budgets")
-        .to_request();
+    let req = test::TestRequest::delete().uri("/v1/budgets").to_request();
     let resp = test::call_service(&app, req).await;
 
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT,
-               "Budget deletion should return 204");
+    assert_eq!(
+        resp.status(),
+        StatusCode::NO_CONTENT,
+        "Budget deletion should return 204"
+    );
 }
 
 #[actix_rt::test]
 async fn test_metrics_include_all_required_counters() {
     // Verify all Phase 2 metrics are present (E2E script step 12)
-    let app = test::init_service(
-        App::new()
-            .route("/metrics", web::get().to(mock_metrics))
-    ).await;
+    let app = test::init_service(App::new().route("/metrics", web::get().to(mock_metrics))).await;
 
-    let req = test::TestRequest::get()
-        .uri("/metrics")
-        .to_request();
+    let req = test::TestRequest::get().uri("/metrics").to_request();
     let resp = test::call_service(&app, req).await;
 
     let body = test::read_body(resp).await;
     let metrics = String::from_utf8(body.to_vec()).unwrap();
 
     // Verify all required metrics from §26-29
-    assert!(metrics.contains("spell_cast_total"),
-            "Must include spell_cast_total counter");
-    assert!(metrics.contains("spell_budget_blocked_total"),
-            "Must include spell_budget_blocked_total counter");
-    assert!(metrics.contains("spell_rate_limited_total"),
-            "Must include spell_rate_limited_total counter");
+    assert!(
+        metrics.contains("spell_cast_total"),
+        "Must include spell_cast_total counter"
+    );
+    assert!(
+        metrics.contains("spell_budget_blocked_total"),
+        "Must include spell_budget_blocked_total counter"
+    );
+    assert!(
+        metrics.contains("spell_rate_limited_total"),
+        "Must include spell_rate_limited_total counter"
+    );
 }

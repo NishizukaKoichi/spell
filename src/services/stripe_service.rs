@@ -89,7 +89,9 @@ impl StripeService {
         let session = CheckoutSession::create(client, params).await?;
 
         Ok(CheckoutSessionResponse {
-            url: session.url.ok_or_else(|| anyhow::anyhow!("No URL in session"))?,
+            url: session
+                .url
+                .ok_or_else(|| anyhow::anyhow!("No URL in session"))?,
             session_id: session.id.to_string(),
         })
     }

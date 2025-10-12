@@ -2,8 +2,8 @@
 // Implements §30 data deletion and export requirements
 
 use actix_web::{web, HttpRequest, HttpResponse, Result};
-use sqlx::PgPool;
 use serde::Serialize;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::User;
@@ -27,10 +27,7 @@ use crate::models::User;
 /// - GDPR Article 17 (Right to Erasure)
 /// - CCPA §1798.105 (Right to Delete)
 /// - Japanese APPI Article 30 (Erasure)
-pub async fn delete_user_data(
-    req: HttpRequest,
-    pool: web::Data<PgPool>,
-) -> Result<HttpResponse> {
+pub async fn delete_user_data(req: HttpRequest, pool: web::Data<PgPool>) -> Result<HttpResponse> {
     // Get authenticated user from request extensions (set by auth middleware)
     let user_id = {
         let ext = req.extensions();
@@ -40,13 +37,10 @@ pub async fn delete_user_data(
     };
 
     // Delete user (cascades to all related data)
-    let result = sqlx::query!(
-        "DELETE FROM users WHERE id = $1 RETURNING id",
-        user_id
-    )
-    .fetch_optional(pool.get_ref())
-    .await
-    .map_err(actix_web::error::ErrorInternalServerError)?;
+    let result = sqlx::query!("DELETE FROM users WHERE id = $1 RETURNING id", user_id)
+        .fetch_optional(pool.get_ref())
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     if result.is_none() {
         return Ok(HttpResponse::NotFound().json(serde_json::json!({
@@ -132,10 +126,7 @@ pub struct CastExport {
 /// - GDPR Article 20 (Right to Data Portability)
 /// - CCPA §1798.110 (Right to Know)
 /// - Japanese APPI Article 28 (Disclosure)
-pub async fn export_user_data(
-    req: HttpRequest,
-    pool: web::Data<PgPool>,
-) -> Result<HttpResponse> {
+pub async fn export_user_data(req: HttpRequest, pool: web::Data<PgPool>) -> Result<HttpResponse> {
     // Get authenticated user from request extensions (set by auth middleware)
     let user_id = {
         let ext = req.extensions();

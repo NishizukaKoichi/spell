@@ -1,16 +1,16 @@
+use crate::models::User;
+use actix_web::dev::{Service, Transform};
 use actix_web::{
-    body::{EitherBody, MessageBody, BoxBody},
+    body::{BoxBody, EitherBody, MessageBody},
     dev::{ServiceRequest, ServiceResponse},
     Error, HttpMessage, HttpResponse,
 };
-use actix_web::dev::{Service, Transform};
+use deadpool_redis::Pool;
 use futures::future::{ok, Ready};
 use futures::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
-use crate::models::User;
-use deadpool_redis::Pool;
 
 pub struct RateLimit {
     redis_pool: Pool,
@@ -113,18 +113,11 @@ where
     }
 }
 
-async fn check_rate_limit(
-    pool: &Pool,
-    key: &str,
-    limit: u64,
-) -> Result<bool, anyhow::Error> {
+async fn check_rate_limit(pool: &Pool, key: &str, limit: u64) -> Result<bool, anyhow::Error> {
     let mut conn = pool.get().await?;
 
     // INCR and check
-    let count: u64 = redis::cmd("INCR")
-        .arg(key)
-        .query_async(&mut *conn)
-        .await?;
+    let count: u64 = redis::cmd("INCR").arg(key).query_async(&mut *conn).await?;
 
     if count == 1 {
         // Set expiry on first request

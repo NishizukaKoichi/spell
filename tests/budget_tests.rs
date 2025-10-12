@@ -6,8 +6,8 @@
 // - Soft limit warnings
 // - Usage tracking accuracy
 
-use actix_web::{test, web, App, HttpResponse};
 use actix_web::http::StatusCode;
+use actix_web::{test, web, App, HttpResponse};
 
 // Mock budget service responses
 #[derive(Debug, Clone)]
@@ -18,18 +18,12 @@ pub enum BudgetCheckResult {
 }
 
 // Mock cast endpoint that checks budget
-async fn mock_cast_with_budget_check(
-    budget_result: web::Data<BudgetCheckResult>,
-) -> HttpResponse {
+async fn mock_cast_with_budget_check(budget_result: web::Data<BudgetCheckResult>) -> HttpResponse {
     match budget_result.as_ref() {
-        BudgetCheckResult::Ok => {
-            HttpResponse::Ok().json(serde_json::json!({"result": "executed"}))
-        }
-        BudgetCheckResult::SoftLimitExceeded => {
-            HttpResponse::Ok()
-                .insert_header(("X-Budget-Warning", "soft-limit-exceeded"))
-                .json(serde_json::json!({"result": "executed", "warning": "soft_limit_exceeded"}))
-        }
+        BudgetCheckResult::Ok => HttpResponse::Ok().json(serde_json::json!({"result": "executed"})),
+        BudgetCheckResult::SoftLimitExceeded => HttpResponse::Ok()
+            .insert_header(("X-Budget-Warning", "soft-limit-exceeded"))
+            .json(serde_json::json!({"result": "executed", "warning": "soft_limit_exceeded"})),
         BudgetCheckResult::HardLimitExceeded => {
             // This is Phase 2の肝 - HTTP 402 Payment Required
             HttpResponse::PaymentRequired().json(serde_json::json!({
@@ -47,13 +41,12 @@ async fn test_budget_ok_returns_200() {
     let app = test::init_service(
         App::new()
             .app_data(budget_result.clone())
-            .route("/v1/cast", web::post().to(mock_cast_with_budget_check))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget_check)),
+    )
+    .await;
 
     // Act
-    let req = test::TestRequest::post()
-        .uri("/v1/cast")
-        .to_request();
+    let req = test::TestRequest::post().uri("/v1/cast").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert
@@ -67,13 +60,12 @@ async fn test_soft_limit_exceeded_returns_200_with_warning() {
     let app = test::init_service(
         App::new()
             .app_data(budget_result.clone())
-            .route("/v1/cast", web::post().to(mock_cast_with_budget_check))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget_check)),
+    )
+    .await;
 
     // Act
-    let req = test::TestRequest::post()
-        .uri("/v1/cast")
-        .to_request();
+    let req = test::TestRequest::post().uri("/v1/cast").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert
@@ -81,8 +73,10 @@ async fn test_soft_limit_exceeded_returns_200_with_warning() {
 
     // Check for warning header
     let headers = resp.headers();
-    assert!(headers.contains_key("X-Budget-Warning"),
-            "Should include budget warning header");
+    assert!(
+        headers.contains_key("X-Budget-Warning"),
+        "Should include budget warning header"
+    );
 }
 
 #[actix_rt::test]
@@ -92,18 +86,20 @@ async fn test_hard_limit_exceeded_returns_402() {
     let app = test::init_service(
         App::new()
             .app_data(budget_result.clone())
-            .route("/v1/cast", web::post().to(mock_cast_with_budget_check))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget_check)),
+    )
+    .await;
 
     // Act
-    let req = test::TestRequest::post()
-        .uri("/v1/cast")
-        .to_request();
+    let req = test::TestRequest::post().uri("/v1/cast").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert - HTTP 402 Payment Required (Phase 2の肝)
-    assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED,
-               "Must return HTTP 402 when hard limit exceeded - this is Phase 2の肝");
+    assert_eq!(
+        resp.status(),
+        StatusCode::PAYMENT_REQUIRED,
+        "Must return HTTP 402 when hard limit exceeded - this is Phase 2の肝"
+    );
 }
 
 #[actix_rt::test]
@@ -116,8 +112,9 @@ async fn test_budget_check_happens_before_execution() {
     let app = test::init_service(
         App::new()
             .app_data(budget_result.clone())
-            .route("/v1/cast", web::post().to(mock_cast_with_budget_check))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget_check)),
+    )
+    .await;
 
     // Act
     let req = test::TestRequest::post()
@@ -130,8 +127,11 @@ async fn test_budget_check_happens_before_execution() {
     let resp = test::call_service(&app, req).await;
 
     // Assert - Should return 402 WITHOUT executing WASM
-    assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED,
-               "Budget check must happen BEFORE WASM execution");
+    assert_eq!(
+        resp.status(),
+        StatusCode::PAYMENT_REQUIRED,
+        "Budget check must happen BEFORE WASM execution"
+    );
 }
 
 #[actix_rt::test]
@@ -141,23 +141,25 @@ async fn test_http_402_response_structure() {
     let app = test::init_service(
         App::new()
             .app_data(budget_result.clone())
-            .route("/v1/cast", web::post().to(mock_cast_with_budget_check))
-    ).await;
+            .route("/v1/cast", web::post().to(mock_cast_with_budget_check)),
+    )
+    .await;
 
     // Act
-    let req = test::TestRequest::post()
-        .uri("/v1/cast")
-        .to_request();
+    let req = test::TestRequest::post().uri("/v1/cast").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert response structure
     assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
 
     let body = test::read_body(resp).await;
-    let json: serde_json::Value = serde_json::from_slice(&body)
-        .expect("Response should be valid JSON");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("Response should be valid JSON");
 
     assert!(json.get("error").is_some(), "Should include error field");
     assert_eq!(json["error"], "budget_exceeded");
-    assert!(json.get("message").is_some(), "Should include message field");
+    assert!(
+        json.get("message").is_some(),
+        "Should include message field"
+    );
 }

@@ -46,8 +46,8 @@ async fn get_budget(
 
     match budget {
         Some(b) => {
-            let thresholds: Vec<i32> = serde_json::from_value(b.notify_thresholds_json.clone())
-                .unwrap_or_default();
+            let thresholds: Vec<i32> =
+                serde_json::from_value(b.notify_thresholds_json.clone()).unwrap_or_default();
 
             Ok(HttpResponse::Ok().json(BudgetResponse {
                 user_id: b.user_id,
@@ -190,7 +190,10 @@ async fn get_usage(
         actix_web::error::ErrorInternalServerError("Database error")
     })?;
 
-    let period = budget.as_ref().map(|b| b.period.as_str()).unwrap_or("monthly");
+    let period = budget
+        .as_ref()
+        .map(|b| b.period.as_str())
+        .unwrap_or("monthly");
 
     let (total_calls, total_cost) = BudgetService::get_current_usage(&user_id, period, &state.db)
         .await

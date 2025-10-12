@@ -50,8 +50,7 @@ pub async fn validator(
 
 async fn authenticate_api_key(pool: &PgPool, token: &str) -> Result<User, anyhow::Error> {
     // Extract prefix from API key
-    let prefix = extract_prefix(token)
-        .ok_or_else(|| anyhow::anyhow!("Invalid API key format"))?;
+    let prefix = extract_prefix(token).ok_or_else(|| anyhow::anyhow!("Invalid API key format"))?;
 
     // Fetch all API keys with matching prefix
     let api_keys: Vec<ApiKey> = sqlx::query_as::<_, ApiKey>(

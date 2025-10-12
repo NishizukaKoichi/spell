@@ -1,17 +1,17 @@
-pub mod user;
 pub mod apikey;
 pub mod billing;
+pub mod user;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use user::{User, Session, GitHubUser, GitHubAccessTokenResponse};
 pub use apikey::{ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeyResponse};
 pub use billing::{
-    BillingAccount, UsageCounter, Budget, CreateBudgetRequest, BudgetResponse,
-    CheckoutSessionResponse, BudgetExceededError,
+    BillingAccount, Budget, BudgetExceededError, BudgetResponse, CheckoutSessionResponse,
+    CreateBudgetRequest, UsageCounter,
 };
+pub use user::{GitHubAccessTokenResponse, GitHubUser, Session, User};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Cast {

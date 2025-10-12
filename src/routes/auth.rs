@@ -18,8 +18,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 async fn github_login() -> HttpResponse {
     let client_id = env::var("GITHUB_CLIENT_ID").unwrap_or_else(|_| "your_client_id".to_string());
-    let redirect_uri =
-        env::var("GITHUB_REDIRECT_URI").unwrap_or_else(|_| "http://localhost:8080/auth/github/callback".to_string());
+    let redirect_uri = env::var("GITHUB_REDIRECT_URI")
+        .unwrap_or_else(|_| "http://localhost:8080/auth/github/callback".to_string());
 
     let url = format!(
         "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=user:email",
@@ -74,7 +74,10 @@ async fn github_callback(
     // Get user info from GitHub
     let user_response = match client
         .get("https://api.github.com/user")
-        .header("Authorization", format!("Bearer {}", token_data.access_token))
+        .header(
+            "Authorization",
+            format!("Bearer {}", token_data.access_token),
+        )
         .header("User-Agent", "Spell-Platform")
         .send()
         .await

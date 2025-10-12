@@ -5,8 +5,8 @@
 // - Bearer token authentication
 // - Unauthorized access rejection
 
-use actix_web::{test, web, App, HttpResponse};
 use actix_web::http::{header, StatusCode};
+use actix_web::{test, web, App, HttpResponse};
 
 // Mock auth middleware for testing
 async fn mock_protected_endpoint() -> HttpResponse {
@@ -16,15 +16,12 @@ async fn mock_protected_endpoint() -> HttpResponse {
 #[actix_rt::test]
 async fn test_missing_authorization_header() {
     // Arrange
-    let app = test::init_service(
-        App::new()
-            .route("/protected", web::get().to(mock_protected_endpoint))
-    ).await;
+    let app =
+        test::init_service(App::new().route("/protected", web::get().to(mock_protected_endpoint)))
+            .await;
 
     // Act
-    let req = test::TestRequest::get()
-        .uri("/protected")
-        .to_request();
+    let req = test::TestRequest::get().uri("/protected").to_request();
     let resp = test::call_service(&app, req).await;
 
     // Assert - Without auth middleware, this will succeed
@@ -35,10 +32,9 @@ async fn test_missing_authorization_header() {
 #[actix_rt::test]
 async fn test_invalid_bearer_token_format() {
     // Arrange
-    let app = test::init_service(
-        App::new()
-            .route("/protected", web::get().to(mock_protected_endpoint))
-    ).await;
+    let app =
+        test::init_service(App::new().route("/protected", web::get().to(mock_protected_endpoint)))
+            .await;
 
     // Act - Invalid format (not "Bearer <token>")
     let req = test::TestRequest::get()
@@ -55,10 +51,9 @@ async fn test_invalid_bearer_token_format() {
 #[actix_rt::test]
 async fn test_valid_session_token_format() {
     // Arrange
-    let app = test::init_service(
-        App::new()
-            .route("/protected", web::get().to(mock_protected_endpoint))
-    ).await;
+    let app =
+        test::init_service(App::new().route("/protected", web::get().to(mock_protected_endpoint)))
+            .await;
 
     // Act - Valid Bearer token format (64 chars alphanumeric)
     let valid_token = "a".repeat(64);
@@ -78,8 +73,10 @@ async fn test_session_token_generation_format() {
     let token = generate_test_token();
 
     assert_eq!(token.len(), 64, "Token should be 64 characters");
-    assert!(token.chars().all(|c| c.is_ascii_alphanumeric()),
-            "Token should only contain alphanumeric characters");
+    assert!(
+        token.chars().all(|c| c.is_ascii_alphanumeric()),
+        "Token should only contain alphanumeric characters"
+    );
 }
 
 // Helper: Generate test session token (matches src/routes/auth.rs logic)

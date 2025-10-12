@@ -14,6 +14,20 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: spell_test
+          POSTGRES_PASSWORD: spell_test
+          POSTGRES_DB: spell_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -38,12 +52,40 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Run database migrations
+        run: |
+          # Install sqlx-cli
+          cargo install sqlx-cli --no-default-features --features postgres
+
+          # Run migrations
+          for migration in migrations/*.sql; do
+            psql "postgres://spell_test:spell_test@localhost:5432/spell_test" < "$migration"
+          done
+        env:
+          DATABASE_URL: postgres://spell_test:spell_test@localhost:5432/spell_test
+
       - name: Run tests
         run: cargo test --verbose
+        env:
+          DATABASE_URL: postgres://spell_test:spell_test@localhost:5432/spell_test
 
   lint:
     name: Lint (Clippy)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: spell_test
+          POSTGRES_PASSWORD: spell_test
+          POSTGRES_DB: spell_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -70,8 +112,19 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Run database migrations
+        run: |
+          cargo install sqlx-cli --no-default-features --features postgres
+          for migration in migrations/*.sql; do
+            psql "postgres://spell_test:spell_test@localhost:5432/spell_test" < "$migration"
+          done
+        env:
+          DATABASE_URL: postgres://spell_test:spell_test@localhost:5432/spell_test
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+        env:
+          DATABASE_URL: postgres://spell_test:spell_test@localhost:5432/spell_test
 
   format:
     name: Format Check

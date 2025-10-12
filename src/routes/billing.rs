@@ -23,9 +23,7 @@ async fn create_checkout_session(
     let user_id = {
         let ext = http_req.extensions();
         ext.get::<User>()
-            .ok_or_else(|| {
-                actix_web::error::ErrorUnauthorized("User not authenticated")
-            })?
+            .ok_or_else(|| actix_web::error::ErrorUnauthorized("User not authenticated"))?
             .id
     };
 

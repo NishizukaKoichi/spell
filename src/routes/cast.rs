@@ -84,7 +84,9 @@ async fn cast_spell(
                 .unwrap_or(0);
 
             if cost_cents > 0 {
-                if let Err(e) = BudgetService::record_usage(&user_id, cost_cents, &cast_id, &state.db).await {
+                if let Err(e) =
+                    BudgetService::record_usage(&user_id, cost_cents, &cast_id, &state.db).await
+                {
                     log::error!("Failed to record usage for cast {}: {}", cast_id, e);
                     // Continue anyway - don't fail the cast
                 }

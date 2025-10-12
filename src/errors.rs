@@ -62,7 +62,11 @@ impl fmt::Display for CastError {
             CastError::WasmTimeout => write!(f, "WASM execution timeout"),
             CastError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             CastError::InternalError(msg) => write!(f, "Internal error: {}", msg),
-            CastError::BudgetExceeded(err) => write!(f, "Budget exceeded: {} cents spent, limit is {} cents", err.spent_cents, err.hard_limit_cents),
+            CastError::BudgetExceeded(err) => write!(
+                f,
+                "Budget exceeded: {} cents spent, limit is {} cents",
+                err.spent_cents, err.hard_limit_cents
+            ),
         }
     }
 }

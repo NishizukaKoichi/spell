@@ -4,17 +4,17 @@ mod middleware;
 mod models;
 mod routes;
 mod services;
-mod wasm;
 mod utils;
+mod wasm;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
+use parking_lot::Mutex;
 use std::env;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
-use services::stripe_service::StripeService;
 use routes::metrics::Metrics;
+use services::stripe_service::StripeService;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

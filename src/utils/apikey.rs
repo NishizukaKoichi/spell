@@ -26,8 +26,8 @@ pub fn generate_api_key(prefix: &str) -> Result<(String, String), anyhow::Error>
 }
 
 pub fn verify_api_key(provided: &str, hash: &str) -> Result<bool, anyhow::Error> {
-    let parsed_hash = PasswordHash::new(hash)
-        .map_err(|e| anyhow::anyhow!("Failed to parse hash: {}", e))?;
+    let parsed_hash =
+        PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("Failed to parse hash: {}", e))?;
     let argon2 = Argon2::default();
 
     match argon2.verify_password(provided.as_bytes(), &parsed_hash) {

@@ -1,12 +1,14 @@
 use crate::models::{ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeyResponse, User};
-use crate::utils::apikey::{generate_api_key, extract_prefix};
+use crate::utils::apikey::{extract_prefix, generate_api_key};
 use crate::AppState;
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
 use std::env;
 use uuid::Uuid;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    let auth = actix_web_httpauth::middleware::HttpAuthentication::bearer(crate::middleware::auth::validator);
+    let auth = actix_web_httpauth::middleware::HttpAuthentication::bearer(
+        crate::middleware::auth::validator,
+    );
     cfg.service(
         web::resource("/keys")
             .wrap(auth.clone())
@@ -36,8 +38,9 @@ async fn create_api_key(
     let prefix = env::var("API_KEY_PREFIX").unwrap_or_else(|_| "sk_live_".to_string());
 
     // Generate API key
-    let (api_key, hash) = generate_api_key(&prefix)
-        .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Failed to generate API key: {}", e)))?;
+    let (api_key, hash) = generate_api_key(&prefix).map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Failed to generate API key: {}", e))
+    })?;
 
     // Extract prefix for storage
     let stored_prefix = extract_prefix(&api_key)
@@ -57,7 +60,9 @@ async fn create_api_key(
     .bind(&hash)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Failed to create API key: {}", e)))?;
+    .map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Failed to create API key: {}", e))
+    })?;
 
     log::info!("API key {} created for user {}", api_key_id, user_id);
 
@@ -90,7 +95,9 @@ async fn list_api_keys(
     .bind(&user_id)
     .fetch_all(&state.db)
     .await
-    .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Failed to list API keys: {}", e)))?;
+    .map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Failed to list API keys: {}", e))
+    })?;
 
     let response: Vec<ListApiKeyResponse> = keys
         .into_iter()
@@ -129,7 +136,9 @@ async fn delete_api_key(
     .bind(&user_id)
     .execute(&state.db)
     .await
-    .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Failed to delete API key: {}", e)))?;
+    .map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Failed to delete API key: {}", e))
+    })?;
 
     if result.rows_affected() == 0 {
         return Err(actix_web::error::ErrorNotFound("API key not found"));
