@@ -753,19 +753,38 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 - 📦 依存関係: react-hook-form, zod, @hookform/resolvers, swr
 - ✅ ビルド検証済み: 全ページ正常にコンパイル
 
-#### 5.2 認証フロー統合 🔐
+#### 5.2 認証フロー統合 🔐 ✅
 
-**既存API利用**:
-- `GET /auth/github` - OAuth開始
-- `GET /auth/callback` - OAuth callback
-- Session cookie管理
+**完了日時**: 2025-10-12 21:45
+**コミット**: `9885b65` - "feat: Phase 5.2 - 認証フロー統合完了"
+
+**バックエンド変更** (src/routes/auth.rs):
+- ✅ GitHub callback を Cookie ベースセッション管理に変更
+- ✅ `GET /auth/me` エンドポイント追加（セッション情報取得）
+- ✅ `POST /auth/logout` エンドポイント追加
+- ✅ HttpOnly Cookie でセッショントークン管理（30日間有効）
+- ✅ コールバック後にフロントエンド `/dashboard` にリダイレクト
+
+**フロントエンド変更**:
+- ✅ `useAuth()` フック実装（SWR）(frontend/lib/auth.ts)
+- ✅ Dashboard レイアウトに認証チェック追加
+- ✅ Protected Routes 実装（未認証時 `/login` へリダイレクト）
+- ✅ ログアウト機能実装
+- ✅ GitHub アバター表示
 
 **実装タスク**:
-1. [ ] フロントエンドから `/auth/github` 呼び出し
-2. [ ] Callback後のリダイレクト処理（`/dashboard` へ）
-3. [ ] Session状態管理（SWR + middleware）
-4. [ ] Protected Routes実装（未ログイン時 `/login` へ）
-5. [ ] ログアウト機能
+1. [x] フロントエンドから `/auth/github` 呼び出し
+2. [x] Callback後のリダイレクト処理（`/dashboard` へ）
+3. [x] Session状態管理（SWR）
+4. [x] Protected Routes実装（未ログイン時 `/login` へ）
+5. [x] ログアウト機能
+
+**認証フロー**:
+1. ユーザーが `/login` で GitHub OAuth ボタンクリック
+2. バックエンド `/auth/github` → GitHub 認可ページへ
+3. GitHub `/auth/github/callback` → セッション作成 + Cookie設定
+4. フロントエンド `/dashboard` へリダイレクト
+5. `useAuth()` が `/auth/me` を呼び出して認証状態確認
 
 #### 5.3 カード登録（Stripe SetupIntent）💳
 
