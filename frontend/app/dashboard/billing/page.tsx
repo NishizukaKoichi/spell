@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CardSetupForm from '@/components/CardSetupForm';
+import BudgetManager from '@/components/BudgetManager';
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
@@ -76,21 +77,7 @@ export default function BillingPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Spending Limit</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Your initial spending limit is set to $50/month. You can adjust this
-          limit after adding a payment method.
-        </p>
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="text-2xl font-bold">$50.00</div>
-            <div className="text-sm text-muted-foreground">
-              Monthly spending limit
-            </div>
-          </div>
-        </div>
-      </div>
+      <BudgetManager />
     </div>
   );
 }
