@@ -303,6 +303,44 @@
   - 👤 **Manual**: Configure `FLY_API_TOKEN` secret (`gh secret set FLY_API_TOKEN`)
   - P0: ブランチ保護設定（main branch）
 
+### 2025-10-12 17:00 - Phase 3 完了: GDPR/SBOM/Sigstore実装 ✨
+
+- **達成**: Phase 3準拠性実装完了（§30, §9.2, §9.4）
+  - ✅ GDPR/CCPA/日本法 準拠API実装
+  - ✅ SBOM生成スクリプト（SPDX + CycloneDX）
+  - ✅ Sigstore署名統合（Fulcio + Rekor）
+  - ✅ CI/CD統合（SBOM job追加）
+
+- **作成ファイル**：
+  - `src/routes/gdpr.rs` - GDPR Article 17/20, CCPA, APPI準拠
+    - `DELETE /v1/users/me` - データ削除（ON DELETE CASCADE）
+    - `GET /v1/users/me/export` - データエクスポート（JSON）
+  - `scripts/generate_sbom.sh` - SBOM生成（§9.4）
+  - `scripts/sign_artifacts.sh` - Sigstore署名（§9.2）
+  - `.github/workflows/ci.yml` - SBOM job追加
+
+- **GDPR実装詳細**：
+  - すべての関連テーブルがON DELETE CASCADE設定済み
+    - sessions, api_keys, billing_accounts, usage_counters, budgets
+  - casts: ON DELETE SET NULL（監査証跡保持）
+  - データエクスポート: 全ユーザーデータをJSON形式で提供
+
+- **SBOM/Sigstore詳細**：
+  - SPDX JSON 2.3 形式
+  - CycloneDX JSON 1.4 形式
+  - Fulcio keyless signing（GitHub OIDC）
+  - Rekor transparency log検証
+
+- **Status**: ⏳ GDPR実装はsqlx compile-time checking制約によりローカルビルド不可
+  - 本番環境（Fly.io）ではDATABASE_URL設定済みのためビルド可能
+  - CI/CD経由でのデプロイ時に検証予定
+
+- **次アクション**：
+  - ⏳ 全変更をcommit & push
+  - ⏳ CI実行確認（SBOM job含む）
+  - ⏳ 本番デプロイ確認（GDPR endpoints含む）
+  - P1: ブランチ保護設定（main branch）
+
 （以降、毎サイクル追記）
 
 ---

@@ -71,6 +71,7 @@ async fn main() -> std::io::Result<()> {
             .route("/healthz", web::get().to(healthz))
             .configure(routes::metrics::configure)
             .configure(routes::auth::configure)
+            .configure(routes::gdpr::config)
             .service(
                 web::scope("/v1")
                     .configure(routes::cast::configure)

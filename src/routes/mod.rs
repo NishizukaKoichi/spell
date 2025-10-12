@@ -4,3 +4,4 @@ pub mod keys;
 pub mod billing;
 pub mod budgets;
 pub mod metrics;
+pub mod gdpr;
