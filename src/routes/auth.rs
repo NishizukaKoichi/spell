@@ -1,6 +1,6 @@
 use crate::models::{GitHubAccessTokenResponse, GitHubUser, User};
 use crate::AppState;
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
 use serde::Deserialize;
@@ -13,7 +13,9 @@ pub struct GitHubCallbackQuery {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/auth/github").route(web::get().to(github_login)))
-        .service(web::resource("/auth/github/callback").route(web::get().to(github_callback)));
+        .service(web::resource("/auth/github/callback").route(web::get().to(github_callback)))
+        .service(web::resource("/auth/me").route(web::get().to(get_session)))
+        .service(web::resource("/auth/logout").route(web::post().to(logout)));
 }
 
 async fn github_login() -> HttpResponse {
@@ -158,17 +160,100 @@ async fn github_callback(
 
     log::info!("User {} logged in successfully", user.github_login);
 
+    // Set session cookie and redirect to frontend
+    let frontend_url = env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    let cookie = format!(
+        "spell_session={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+        session_token,
+        60 * 60 * 24 * 30 // 30 days in seconds
+    );
+
+    HttpResponse::Found()
+        .append_header(("Location", format!("{}/dashboard", frontend_url)))
+        .append_header(("Set-Cookie", cookie))
+        .finish()
+}
+
+async fn get_session(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
+    // Extract session token from cookie
+    let session_token = match extract_session_token(&req) {
+        Some(token) => token,
+        None => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "No session token provided"
+            }));
+        }
+    };
+
+    // Validate session and get user
+    let user: User = match sqlx::query_as::<_, User>(
+        r#"
+        SELECT u.* FROM users u
+        INNER JOIN sessions s ON u.id = s.user_id
+        WHERE s.token = $1 AND s.expires_at > NOW()
+        "#,
+    )
+    .bind(&session_token)
+    .fetch_one(&state.db)
+    .await
+    {
+        Ok(user) => user,
+        Err(_) => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Invalid or expired session"
+            }));
+        }
+    };
+
     HttpResponse::Ok().json(serde_json::json!({
-        "status": "authenticated",
+        "authenticated": true,
         "user": {
             "id": user.id,
             "github_login": user.github_login,
             "github_name": user.github_name,
+            "github_email": user.github_email,
             "github_avatar_url": user.github_avatar_url
-        },
-        "session_token": session_token,
-        "expires_at": expires_at
+        }
     }))
+}
+
+async fn logout(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
+    // Extract session token from cookie
+    let session_token = match extract_session_token(&req) {
+        Some(token) => token,
+        None => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "No session token provided"
+            }));
+        }
+    };
+
+    // Delete session from database
+    match sqlx::query("DELETE FROM sessions WHERE token = $1")
+        .bind(&session_token)
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Failed to delete session: {e}");
+        }
+    }
+
+    // Clear cookie
+    let cookie = "spell_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+
+    HttpResponse::Ok()
+        .append_header(("Set-Cookie", cookie))
+        .json(serde_json::json!({
+            "status": "logged_out"
+        }))
+}
+
+fn extract_session_token(req: &HttpRequest) -> Option<String> {
+    req.cookie("spell_session").map(|c| c.value().to_string())
 }
 
 fn generate_session_token() -> String {
