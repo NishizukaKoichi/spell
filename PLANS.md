@@ -268,6 +268,41 @@
   - P0: CI/CD構築（GitHub Actions - test/lint/audit/deploy）
   - P0: ブランチ保護 + Release Drafter
 
+### 2025-10-12 16:30 - P0 Priority 2 完了: CI/CD Pipeline構築 ✨
+
+- **達成**: GitHub Actions workflows完成
+  - ✅ CI workflow: test/lint/format/security audit
+  - ✅ Deploy workflow: Fly.io + health checks
+  - ✅ Release Drafter: 自動リリースノート生成
+
+- **作成ファイル**：
+  - `.github/workflows/ci.yml` - 4 jobs (test/lint/format/security)
+  - `.github/workflows/deploy.yml` - Fly.io deploy + verification
+  - `.github/workflows/release-drafter.yml` - Auto release drafts
+  - `.github/release-drafter.yml` - Release config (labels/categories)
+
+- **CI Jobs**:
+  - Test: `cargo test --verbose` (all 21 tests)
+  - Lint: `cargo clippy` (fail on warnings)
+  - Format: `cargo fmt --check`
+  - Security: `cargo audit` (CVE scan)
+  - Guard: All jobs must pass
+
+- **Deploy Jobs**:
+  - Fly.io deploy on main branch push
+  - Health check: `/healthz` = 200
+  - Metrics check: `/metrics` (Prometheus format)
+
+- **Status**: ⏳ Commits ready (e9235b6, 0771a3e) - **Manual push required**
+  - OAuth token lacks `workflow` scope
+  - User action: Authenticate via https://github.com/login/device (code: 855D-2DF4)
+  - After push: Set `FLY_API_TOKEN` secret in GitHub repo settings
+
+- **次アクション**：
+  - 👤 **Manual**: Push commits to GitHub (workflow scope auth required)
+  - 👤 **Manual**: Configure `FLY_API_TOKEN` secret (`gh secret set FLY_API_TOKEN`)
+  - P0: ブランチ保護設定（main branch）
+
 （以降、毎サイクル追記）
 
 ---
