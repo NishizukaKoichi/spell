@@ -3,6 +3,8 @@ use parking_lot::Mutex;
 use prometheus::{opts, Counter, Encoder, Gauge, Histogram, HistogramOpts, Registry, TextEncoder};
 use std::sync::Arc;
 
+// Metrics fields are registered in Prometheus registry and accessed via registry.gather()
+#[allow(dead_code)]
 pub struct Metrics {
     pub registry: Arc<Registry>,
     pub cast_total: Counter,
@@ -107,7 +109,7 @@ async fn get_metrics(
 
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer).map_err(|e| {
-        log::error!("Failed to encode metrics: {}", e);
+        log::error!("Failed to encode metrics: {e}");
         actix_web::error::ErrorInternalServerError("Failed to encode metrics")
     })?;
 

@@ -35,6 +35,8 @@ pub struct GitHubUser {
 #[derive(Debug, Deserialize)]
 pub struct GitHubAccessTokenResponse {
     pub access_token: String,
+    #[allow(dead_code)]
     pub token_type: String,
+    #[allow(dead_code)]
     pub scope: String,
 }

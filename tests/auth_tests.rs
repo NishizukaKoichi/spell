@@ -59,7 +59,7 @@ async fn test_valid_session_token_format() {
     let valid_token = "a".repeat(64);
     let req = test::TestRequest::get()
         .uri("/protected")
-        .insert_header((header::AUTHORIZATION, format!("Bearer {}", valid_token)))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {valid_token}")))
         .to_request();
     let resp = test::call_service(&app, req).await;
 

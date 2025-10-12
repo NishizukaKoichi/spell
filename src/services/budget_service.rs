@@ -22,7 +22,7 @@ impl BudgetService {
         .fetch_optional(db)
         .await
         .map_err(|e| {
-            log::error!("Failed to fetch budget: {}", e);
+            log::error!("Failed to fetch budget: {e}");
             BudgetExceededError::new("monthly".to_string(), 0, 0)
         })?;
 
@@ -56,12 +56,12 @@ impl BudgetService {
             "#,
         )
         .bind(user_id)
-        .bind(&window_start)
-        .bind(&window_end)
+        .bind(window_start)
+        .bind(window_end)
         .fetch_optional(db)
         .await
         .map_err(|e| {
-            log::error!("Failed to fetch usage: {}", e);
+            log::error!("Failed to fetch usage: {e}");
             BudgetExceededError::new(budget.period.clone(), hard_limit, 0)
         })?;
 
@@ -106,8 +106,8 @@ impl BudgetService {
             "#,
         )
         .bind(user_id)
-        .bind(&window_start)
-        .bind(&window_end)
+        .bind(window_start)
+        .bind(window_end)
         .bind(cost_cents)
         .execute(db)
         .await?;
@@ -126,10 +126,7 @@ impl BudgetService {
         .await?;
 
         log::debug!(
-            "Recorded usage for user {}: {} cents for cast {}",
-            user_id,
-            cost_cents,
-            cast_id
+            "Recorded usage for user {user_id}: {cost_cents} cents for cast {cast_id}"
         );
 
         Ok(())
@@ -158,8 +155,8 @@ impl BudgetService {
             "#,
         )
         .bind(user_id)
-        .bind(&window_start)
-        .bind(&window_end)
+        .bind(window_start)
+        .bind(window_end)
         .fetch_optional(db)
         .await?;
 

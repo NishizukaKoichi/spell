@@ -76,7 +76,7 @@ where
                 let user_id = req.extensions().get::<User>().map(|u| u.id);
                 if let Some(user_id) = user_id {
                     // Authenticated: 60 req/min per user
-                    (format!("rate:user:{}", user_id), 60)
+                    (format!("rate:user:{user_id}"), 60)
                 } else {
                     // Unauthenticated: 10 req/min per IP
                     let ip = req
@@ -84,7 +84,7 @@ where
                         .realip_remote_addr()
                         .unwrap_or("unknown")
                         .to_string();
-                    (format!("rate:ip:{}", ip), 10)
+                    (format!("rate:ip:{ip}"), 10)
                 }
             };
 
@@ -103,7 +103,7 @@ where
                     }
                 }
                 Err(e) => {
-                    log::error!("Rate limit check failed: {}", e);
+                    log::error!("Rate limit check failed: {e}");
                     // Allow request on Redis error (fail open)
                 }
             }

@@ -30,7 +30,7 @@ async fn cast_spell(
 
     // Check budget hard limit BEFORE execution
     if let Err(budget_err) = BudgetService::check_hard_limit(&user_id, &state.db).await {
-        log::warn!("Budget exceeded for user {}: {:?}", user_id, budget_err);
+        log::warn!("Budget exceeded for user {user_id}: {budget_err:?}");
         return Err(CastError::BudgetExceeded(budget_err));
     }
 
@@ -39,10 +39,7 @@ async fn cast_spell(
     let payload = &req.payload;
 
     log::info!(
-        "Cast {} starting for spell: {} by user {}",
-        cast_id,
-        spell_name,
-        user_id
+        "Cast {cast_id} starting for spell: {spell_name} by user {user_id}"
     );
 
     // Insert initial record with user_id
@@ -52,10 +49,10 @@ async fn cast_spell(
         VALUES ($1, $2, $3, 'QUEUED', $4, NOW())
         "#,
     )
-    .bind(&cast_id)
+    .bind(cast_id)
     .bind(spell_name)
     .bind(payload)
-    .bind(&user_id)
+    .bind(user_id)
     .execute(&state.db)
     .await?;
 
@@ -70,12 +67,12 @@ async fn cast_spell(
                 WHERE id = $1
                 "#,
             )
-            .bind(&cast_id)
+            .bind(cast_id)
             .bind(&output)
             .execute(&state.db)
             .await?;
 
-            log::info!("Cast {} completed successfully", cast_id);
+            log::info!("Cast {cast_id} completed successfully");
 
             // Record usage and cost
             let cost_cents = std::env::var("COST_PER_CAST_CENTS")
@@ -87,7 +84,7 @@ async fn cast_spell(
                 if let Err(e) =
                     BudgetService::record_usage(&user_id, cost_cents, &cast_id, &state.db).await
                 {
-                    log::error!("Failed to record usage for cast {}: {}", cast_id, e);
+                    log::error!("Failed to record usage for cast {cast_id}: {e}");
                     // Continue anyway - don't fail the cast
                 }
             }
@@ -110,12 +107,12 @@ async fn cast_spell(
                 WHERE id = $1
                 "#,
             )
-            .bind(&cast_id)
+            .bind(cast_id)
             .bind(error_code)
             .execute(&state.db)
             .await?;
 
-            log::error!("Cast {} failed: {}", cast_id, e);
+            log::error!("Cast {cast_id} failed: {e}");
 
             return Err(e);
         }

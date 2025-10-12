@@ -56,12 +56,12 @@ impl CastError {
 impl fmt::Display for CastError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CastError::DatabaseError(e) => write!(f, "Database error: {}", e),
-            CastError::WasmNotFound(name) => write!(f, "WASM module not found: {}", name),
-            CastError::WasmExecutionFailed(msg) => write!(f, "WASM execution failed: {}", msg),
+            CastError::DatabaseError(e) => write!(f, "Database error: {e}"),
+            CastError::WasmNotFound(name) => write!(f, "WASM module not found: {name}"),
+            CastError::WasmExecutionFailed(msg) => write!(f, "WASM execution failed: {msg}"),
             CastError::WasmTimeout => write!(f, "WASM execution timeout"),
-            CastError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
-            CastError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+            CastError::InvalidInput(msg) => write!(f, "Invalid input: {msg}"),
+            CastError::InternalError(msg) => write!(f, "Internal error: {msg}"),
             CastError::BudgetExceeded(err) => write!(
                 f,
                 "Budget exceeded: {} cents spent, limit is {} cents",

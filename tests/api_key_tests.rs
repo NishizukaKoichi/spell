@@ -32,7 +32,7 @@ fn generate_api_key(prefix: &str) -> (String, String) {
         })
         .collect();
 
-    let full_key = format!("{}{}", prefix, key_part);
+    let full_key = format!("{prefix}{key_part}");
     (full_key, key_part)
 }
 

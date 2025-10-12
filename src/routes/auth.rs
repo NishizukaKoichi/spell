@@ -22,8 +22,7 @@ async fn github_login() -> HttpResponse {
         .unwrap_or_else(|_| "http://localhost:8080/auth/github/callback".to_string());
 
     let url = format!(
-        "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=user:email",
-        client_id, redirect_uri
+        "https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope=user:email"
     );
 
     HttpResponse::Found()
@@ -54,7 +53,7 @@ async fn github_callback(
     {
         Ok(resp) => resp,
         Err(e) => {
-            log::error!("Failed to exchange code for token: {}", e);
+            log::error!("Failed to exchange code for token: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to authenticate with GitHub"
             }));
@@ -64,7 +63,7 @@ async fn github_callback(
     let token_data: GitHubAccessTokenResponse = match token_response.json().await {
         Ok(data) => data,
         Err(e) => {
-            log::error!("Failed to parse token response: {}", e);
+            log::error!("Failed to parse token response: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to parse GitHub response"
             }));
@@ -84,7 +83,7 @@ async fn github_callback(
     {
         Ok(resp) => resp,
         Err(e) => {
-            log::error!("Failed to get user info: {}", e);
+            log::error!("Failed to get user info: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to get user info from GitHub"
             }));
@@ -94,7 +93,7 @@ async fn github_callback(
     let github_user: GitHubUser = match user_response.json().await {
         Ok(data) => data,
         Err(e) => {
-            log::error!("Failed to parse user response: {}", e);
+            log::error!("Failed to parse user response: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to parse user data"
             }));
@@ -125,7 +124,7 @@ async fn github_callback(
     {
         Ok(user) => user,
         Err(e) => {
-            log::error!("Failed to upsert user: {}", e);
+            log::error!("Failed to upsert user: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to save user"
             }));
@@ -142,7 +141,7 @@ async fn github_callback(
         VALUES ($1, $2, $3)
         "#,
     )
-    .bind(&user.id)
+    .bind(user.id)
     .bind(&session_token)
     .bind(expires_at)
     .execute(&state.db)
@@ -150,7 +149,7 @@ async fn github_callback(
     {
         Ok(_) => {}
         Err(e) => {
-            log::error!("Failed to create session: {}", e);
+            log::error!("Failed to create session: {e}");
             return HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to create session"
             }));

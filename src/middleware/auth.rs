@@ -6,7 +6,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 
 pub async fn validator(
-    mut req: ServiceRequest,
+    req: ServiceRequest,
     credentials: BearerAuth,
 ) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     let token = credentials.token();
@@ -29,7 +29,7 @@ pub async fn validator(
                 return Ok(req);
             }
             Err(e) => {
-                log::debug!("API key authentication failed: {}", e);
+                log::debug!("API key authentication failed: {e}");
                 // Fall through to session authentication
             }
         }
@@ -75,7 +75,7 @@ async fn authenticate_api_key(pool: &PgPool, token: &str) -> Result<User, anyhow
                 WHERE id = $1
                 "#,
             )
-            .bind(&api_key.id)
+            .bind(api_key.id)
             .execute(pool)
             .await?;
 

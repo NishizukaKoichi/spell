@@ -20,14 +20,14 @@ impl WasmRuntime {
     }
 
     pub fn execute_spell(&self, spell_name: &str, input: Value) -> Result<Value, CastError> {
-        let wasm_file = self.module_path.join(format!("{}.wasm", spell_name));
+        let wasm_file = self.module_path.join(format!("{spell_name}.wasm"));
 
         if !wasm_file.exists() {
             return Err(CastError::WasmNotFound(spell_name.to_string()));
         }
 
         let module = Module::from_file(&self.engine, &wasm_file)
-            .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to load module: {}", e)))?;
+            .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to load module: {e}")))?;
 
         let mut store = Store::new(&self.engine, ());
 
@@ -35,7 +35,7 @@ impl WasmRuntime {
 
         let _instance = linker
             .instantiate(&mut store, &module)
-            .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to instantiate: {}", e)))?;
+            .map_err(|e| CastError::WasmExecutionFailed(format!("Failed to instantiate: {e}")))?;
 
         // For now, return mock success response
         // In a real implementation, we would:

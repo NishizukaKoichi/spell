@@ -119,7 +119,7 @@ async fn test_budget_check_happens_before_execution() {
     // Act
     let req = test::TestRequest::post()
         .uri("/v1/cast")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "wasm_module": "test.wasm",
             "input": {"test": "data"}
         }))

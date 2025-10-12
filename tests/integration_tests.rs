@@ -10,7 +10,7 @@
 // For true E2E tests with real Stripe/GitHub OAuth/Database, use:
 //   scripts/e2e_phase2.sh against deployed environment
 
-use actix_web::http::{header, StatusCode};
+use actix_web::http::StatusCode;
 use actix_web::{test, web, App, HttpResponse};
 
 // ============================================================================
@@ -186,7 +186,7 @@ async fn test_full_budget_enforcement_flow() {
     // Step 2: Create budget with low hard limit
     let req = test::TestRequest::post()
         .uri("/v1/budgets")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "period": "monthly",
             "soft_limit_cents": 5,
             "hard_limit_cents": 10
@@ -209,7 +209,7 @@ async fn test_full_budget_enforcement_flow() {
     // Step 4: First cast (should succeed with current_usage=0)
     let req = test::TestRequest::post()
         .uri("/v1/cast")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "spell_name": "echo",
             "payload": {"message": "test"}
         }))
@@ -232,7 +232,7 @@ async fn test_full_budget_enforcement_flow() {
 
     let req = test::TestRequest::post()
         .uri("/v1/cast")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "spell_name": "echo",
             "payload": {"message": "test"}
         }))
@@ -247,7 +247,7 @@ async fn test_full_budget_enforcement_flow() {
     // Step 6: Update budget to higher limit
     let req = test::TestRequest::put()
         .uri("/v1/budgets")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "period": "monthly",
             "soft_limit_cents": 1000,
             "hard_limit_cents": 2000
@@ -275,7 +275,7 @@ async fn test_full_budget_enforcement_flow() {
 
     let req = test::TestRequest::post()
         .uri("/v1/cast")
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "spell_name": "echo",
             "payload": {"message": "test"}
         }))

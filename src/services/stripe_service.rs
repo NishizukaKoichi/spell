@@ -12,11 +12,17 @@ pub struct StripeService {
     webhook_secret: Option<String>,
 }
 
+impl Default for StripeService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StripeService {
     pub fn new() -> Self {
         let client = std::env::var("STRIPE_SECRET_KEY")
             .ok()
-            .map(|key| Client::new(key));
+            .map(Client::new);
 
         let webhook_secret = std::env::var("STRIPE_WEBHOOK_SECRET").ok();
 
@@ -151,9 +157,7 @@ impl StripeService {
             .to_string();
 
         log::info!(
-            "Checkout completed for user {} with customer {}",
-            user_id,
-            customer_id
+            "Checkout completed for user {user_id} with customer {customer_id}"
         );
 
         // Insert or update billing account
@@ -168,7 +172,7 @@ impl StripeService {
                 updated_at = NOW()
             "#,
         )
-        .bind(&user_id)
+        .bind(user_id)
         .bind(&customer_id)
         .execute(db)
         .await?;
@@ -190,9 +194,7 @@ impl StripeService {
         };
 
         log::info!(
-            "Subscription updated for customer {} to status {}",
-            customer_id,
-            status
+            "Subscription updated for customer {customer_id} to status {status}"
         );
 
         sqlx::query(

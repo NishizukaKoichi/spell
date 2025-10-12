@@ -12,14 +12,14 @@ pub fn generate_api_key(prefix: &str) -> Result<(String, String), anyhow::Error>
     let token = URL_SAFE_NO_PAD.encode(raw);
 
     // Combine prefix and token
-    let api_key = format!("{}{}", prefix, token);
+    let api_key = format!("{prefix}{token}");
 
     // Hash the API key
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     let hash = argon2
         .hash_password(api_key.as_bytes(), &salt)
-        .map_err(|e| anyhow::anyhow!("Failed to hash API key: {}", e))?
+        .map_err(|e| anyhow::anyhow!("Failed to hash API key: {e}"))?
         .to_string();
 
     Ok((api_key, hash))
@@ -27,7 +27,7 @@ pub fn generate_api_key(prefix: &str) -> Result<(String, String), anyhow::Error>
 
 pub fn verify_api_key(provided: &str, hash: &str) -> Result<bool, anyhow::Error> {
     let parsed_hash =
-        PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("Failed to parse hash: {}", e))?;
+        PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("Failed to parse hash: {e}"))?;
     let argon2 = Argon2::default();
 
     match argon2.verify_password(provided.as_bytes(), &parsed_hash) {

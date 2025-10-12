@@ -46,7 +46,7 @@ async fn create_checkout_session(
         .create_checkout_session(user_id, success_url, cancel_url)
         .await
         .map_err(|e| {
-            log::error!("Failed to create checkout session: {}", e);
+            log::error!("Failed to create checkout session: {e}");
             actix_web::error::ErrorInternalServerError("Failed to create checkout session")
         })?;
 
@@ -74,7 +74,7 @@ async fn stripe_webhook(
     let event = stripe_service
         .verify_webhook_signature(&body, signature)
         .map_err(|e| {
-            log::error!("Webhook signature verification failed: {}", e);
+            log::error!("Webhook signature verification failed: {e}");
             actix_web::error::ErrorUnauthorized("Invalid webhook signature")
         })?;
 
@@ -85,7 +85,7 @@ async fn stripe_webhook(
         .handle_webhook_event(event, &state.db)
         .await
         .map_err(|e| {
-            log::error!("Failed to handle webhook event: {}", e);
+            log::error!("Failed to handle webhook event: {e}");
             actix_web::error::ErrorInternalServerError("Failed to process webhook")
         })?;
 

@@ -39,7 +39,7 @@ async fn create_api_key(
 
     // Generate API key
     let (api_key, hash) = generate_api_key(&prefix).map_err(|e| {
-        actix_web::error::ErrorInternalServerError(format!("Failed to generate API key: {}", e))
+        actix_web::error::ErrorInternalServerError(format!("Failed to generate API key: {e}"))
     })?;
 
     // Extract prefix for storage
@@ -54,17 +54,17 @@ async fn create_api_key(
         RETURNING id
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .bind(&payload.name)
     .bind(&stored_prefix)
     .bind(&hash)
     .fetch_one(&state.db)
     .await
     .map_err(|e| {
-        actix_web::error::ErrorInternalServerError(format!("Failed to create API key: {}", e))
+        actix_web::error::ErrorInternalServerError(format!("Failed to create API key: {e}"))
     })?;
 
-    log::info!("API key {} created for user {}", api_key_id, user_id);
+    log::info!("API key {api_key_id} created for user {user_id}");
 
     Ok(HttpResponse::Ok().json(CreateApiKeyResponse {
         id: api_key_id,
@@ -92,11 +92,11 @@ async fn list_api_keys(
         ORDER BY created_at DESC
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .fetch_all(&state.db)
     .await
     .map_err(|e| {
-        actix_web::error::ErrorInternalServerError(format!("Failed to list API keys: {}", e))
+        actix_web::error::ErrorInternalServerError(format!("Failed to list API keys: {e}"))
     })?;
 
     let response: Vec<ListApiKeyResponse> = keys
@@ -132,19 +132,19 @@ async fn delete_api_key(
         WHERE id = $1 AND user_id = $2
         "#,
     )
-    .bind(&key_id)
-    .bind(&user_id)
+    .bind(key_id)
+    .bind(user_id)
     .execute(&state.db)
     .await
     .map_err(|e| {
-        actix_web::error::ErrorInternalServerError(format!("Failed to delete API key: {}", e))
+        actix_web::error::ErrorInternalServerError(format!("Failed to delete API key: {e}"))
     })?;
 
     if result.rows_affected() == 0 {
         return Err(actix_web::error::ErrorNotFound("API key not found"));
     }
 
-    log::info!("API key {} deleted by user {}", key_id, user_id);
+    log::info!("API key {key_id} deleted by user {user_id}");
 
     Ok(HttpResponse::NoContent().finish())
 }

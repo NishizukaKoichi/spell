@@ -36,11 +36,11 @@ async fn get_budget(
         SELECT * FROM budgets WHERE user_id = $1
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| {
-        log::error!("Failed to fetch budget: {}", e);
+        log::error!("Failed to fetch budget: {e}");
         actix_web::error::ErrorInternalServerError("Database error")
     })?;
 
@@ -78,7 +78,7 @@ async fn create_budget(
     };
 
     let period = req.period.as_deref().unwrap_or("monthly");
-    let thresholds_json = serde_json::to_value(&req.notify_thresholds.clone().unwrap_or_default())
+    let thresholds_json = serde_json::to_value(req.notify_thresholds.clone().unwrap_or_default())
         .unwrap_or(serde_json::json!([]));
 
     // Validate limits
@@ -103,7 +103,7 @@ async fn create_budget(
         RETURNING *
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .bind(period)
     .bind(req.soft_limit_cents)
     .bind(req.hard_limit_cents)
@@ -111,7 +111,7 @@ async fn create_budget(
     .fetch_one(&state.db)
     .await
     .map_err(|e| {
-        log::error!("Failed to create budget: {}", e);
+        log::error!("Failed to create budget: {e}");
         actix_web::error::ErrorInternalServerError("Database error")
     })?;
 
@@ -154,11 +154,11 @@ async fn delete_budget(
         DELETE FROM budgets WHERE user_id = $1
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .execute(&state.db)
     .await
     .map_err(|e| {
-        log::error!("Failed to delete budget: {}", e);
+        log::error!("Failed to delete budget: {e}");
         actix_web::error::ErrorInternalServerError("Database error")
     })?;
 
@@ -182,11 +182,11 @@ async fn get_usage(
         SELECT * FROM budgets WHERE user_id = $1
         "#,
     )
-    .bind(&user_id)
+    .bind(user_id)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| {
-        log::error!("Failed to fetch budget: {}", e);
+        log::error!("Failed to fetch budget: {e}");
         actix_web::error::ErrorInternalServerError("Database error")
     })?;
 
@@ -198,7 +198,7 @@ async fn get_usage(
     let (total_calls, total_cost) = BudgetService::get_current_usage(&user_id, period, &state.db)
         .await
         .map_err(|e| {
-            log::error!("Failed to get usage: {}", e);
+            log::error!("Failed to get usage: {e}");
             actix_web::error::ErrorInternalServerError("Database error")
         })?;
 
