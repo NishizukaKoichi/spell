@@ -1,6 +1,6 @@
 use crate::models::{ApiKey, Session, User};
 use crate::utils::apikey::{extract_prefix, verify_api_key};
-use actix_web::{dev::ServiceRequest, Error, HttpMessage};
+use actix_web::{dev::ServiceRequest, Error, HttpMessage, HttpRequest};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::Utc;
 use sqlx::PgPool;
@@ -118,4 +118,26 @@ async fn authenticate_user(pool: &PgPool, token: &str) -> Result<User, sqlx::Err
     .await?;
 
     Ok(user)
+}
+
+/// Authenticate user from cookie-based session
+/// Returns the authenticated user or None if not authenticated
+pub async fn authenticate_from_cookie(req: &HttpRequest, pool: &PgPool) -> Option<User> {
+    // Extract session token from cookie
+    let session_token = req.cookie("spell_session")?.value().to_string();
+
+    // Validate session
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        SELECT u.* FROM users u
+        INNER JOIN sessions s ON u.id = s.user_id
+        WHERE s.token = $1 AND s.expires_at > NOW()
+        "#,
+    )
+    .bind(&session_token)
+    .fetch_one(pool)
+    .await
+    .ok()?;
+
+    Some(user)
 }

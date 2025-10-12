@@ -1,7 +1,7 @@
 use stripe::{
     CheckoutSession, CheckoutSessionMode, Client, CreateCheckoutSession,
-    CreateCheckoutSessionLineItems, CreatePrice, CreatePriceRecurring, Currency, EventObject,
-    EventType, Price, Webhook,
+    CreateCheckoutSessionLineItems, CreatePrice, CreatePriceRecurring, CreateSetupIntent,
+    Currency, Customer, EventObject, EventType, PaymentMethod, Price, SetupIntent, Webhook,
 };
 use uuid::Uuid;
 
@@ -201,6 +201,143 @@ impl StripeService {
         .bind(&customer_id)
         .bind(status)
         .execute(db)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Get or create a Stripe customer for the user
+    pub async fn get_or_create_customer(
+        &self,
+        db: &sqlx::PgPool,
+        user_id: Uuid,
+    ) -> Result<String, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        // Check if customer already exists in DB
+        let existing: Option<(String,)> = sqlx::query_as(
+            r#"
+            SELECT stripe_customer_id FROM billing_accounts
+            WHERE user_id = $1 AND stripe_customer_id IS NOT NULL
+            "#,
+        )
+        .bind(user_id)
+        .fetch_optional(db)
+        .await?;
+
+        if let Some((customer_id,)) = existing {
+            return Ok(customer_id);
+        }
+
+        // Get user info for customer creation
+        let user: crate::models::User = sqlx::query_as(
+            r#"
+            SELECT * FROM users WHERE id = $1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(db)
+        .await?;
+
+        // Create new customer in Stripe
+        let mut params = stripe::CreateCustomer::new();
+        params.email = user.github_email.as_deref();
+        params.name = user.github_name.as_deref();
+        params.metadata = Some(
+            vec![
+                ("user_id".to_string(), user_id.to_string()),
+                ("github_login".to_string(), user.github_login.clone()),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let customer = Customer::create(client, params).await?;
+        let customer_id = customer.id.to_string();
+
+        // Save to database
+        sqlx::query(
+            r#"
+            INSERT INTO billing_accounts (user_id, stripe_customer_id, plan, status)
+            VALUES ($1, $2, 'free', 'active')
+            ON CONFLICT (user_id) DO UPDATE SET
+                stripe_customer_id = EXCLUDED.stripe_customer_id,
+                updated_at = NOW()
+            "#,
+        )
+        .bind(user_id)
+        .bind(&customer_id)
+        .execute(db)
+        .await?;
+
+        log::info!("Created Stripe customer {} for user {}", customer_id, user.github_login);
+
+        Ok(customer_id)
+    }
+
+    /// Create a SetupIntent for card registration
+    pub async fn create_setup_intent(
+        &self,
+        customer_id: &str,
+    ) -> Result<SetupIntent, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        let mut params = CreateSetupIntent::new();
+        params.customer = Some(stripe::CustomerId::from(customer_id));
+        params.payment_method_types = Some(vec!["card".to_string()]);
+
+        let setup_intent = SetupIntent::create(client, params).await?;
+
+        Ok(setup_intent)
+    }
+
+    /// Attach a payment method to a customer
+    pub async fn attach_payment_method(
+        &self,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> Result<(), anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        let payment_method = PaymentMethod::retrieve(
+            client,
+            &stripe::PaymentMethodId::from(payment_method_id),
+            &[],
+        )
+        .await?;
+
+        // Attach payment method to customer
+        let mut params = stripe::AttachPaymentMethod::new();
+        PaymentMethod::attach(
+            client,
+            &payment_method.id,
+            stripe::AttachPaymentMethod {
+                customer: stripe::CustomerId::from(customer_id),
+            },
+        )
+        .await?;
+
+        // Set as default payment method
+        let mut update_params = stripe::UpdateCustomer::new();
+        update_params.invoice_settings = Some(stripe::CustomerInvoiceSettings {
+            default_payment_method: Some(payment_method.id.to_string()),
+            ..Default::default()
+        });
+
+        Customer::update(
+            client,
+            &stripe::CustomerId::from(customer_id),
+            update_params,
+        )
         .await?;
 
         Ok(())
