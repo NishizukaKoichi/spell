@@ -855,23 +855,35 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 3. [x] 範囲バリデーション（$10-$500）
 4. [x] 即時反映確認UI
 
-#### 5.5 利用状況表示 📊
+#### 5.5 利用状況表示 📊 ✅
 
-**バックエンド**:
-1. [ ] `GET /v1/billing/usage` エンドポイント実装
-   - 今月の利用金額集計
-   - 上限額取得
-   - 残り利用可能額計算
-2. [ ] `GET /v1/billing/payment-method` エンドポイント実装
-   - カード末尾4桁取得（Stripe API経由）
+**完了日時**: 2025-10-12 23:15
+**コミット**: `0d1be07` - "Phase 5.5: Usage Display implementation"
 
-**フロントエンド**:
-1. [ ] 利用状況ダッシュボード実装
-   - 今月の利用金額表示
-   - プログレスバー（利用率）
-   - 上限額 / 残額表示
-2. [ ] カード情報表示（末尾4桁 + ブランド）
-3. [ ] グラフ表示（オプション）
+**バックエンド実装** (src/routes/billing.rs, src/services/stripe_service.rs):
+- ✅ Stripe SDK 型変換修正（`.parse()` 使用）
+- ✅ `get_payment_method()` メソッド追加（StripeService）
+- ✅ `GET /payment-method` エンドポイント実装（Cookie認証）
+  - カードブランド、末尾4桁、有効期限を返却
+- ✅ `GET /usage` エンドポイント実装（Cookie認証）
+  - 今月の API コール数、利用金額、上限額を返却
+
+**フロントエンド実装**:
+- ✅ `useUsage()` フック実装 (frontend/lib/usage.ts)
+  - 30秒ごとに自動リフレッシュ
+- ✅ `usePaymentMethod()` フック実装 (frontend/lib/usage.ts)
+- ✅ UsageDisplay コンポーネント実装 (frontend/components/UsageDisplay.tsx)
+  - 支払い方法表示（ブランド、末尾4桁、有効期限）
+  - 月次利用状況プログレスバー
+  - 色分け警告（>90%=赤、>70%=黄、それ以下=緑）
+  - API コール数と残予算統計
+- ✅ ダッシュボードホームページに統合
+
+**実装タスク**:
+1. [x] `GET /usage` エンドポイント実装（Cookie認証）
+2. [x] `GET /payment-method` エンドポイント実装（Cookie認証）
+3. [x] 利用状況ダッシュボード実装
+4. [x] カード情報表示（末尾4桁 + ブランド）
 
 #### 5.6 API Key 管理UI 🔑
 
