@@ -8,7 +8,7 @@ mod utils;
 mod wasm;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use parking_lot::Mutex;
 use std::env;
 use std::sync::Arc;
