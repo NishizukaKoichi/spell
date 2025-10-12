@@ -477,6 +477,69 @@
 
 （以降、毎サイクル追記）
 
+### 2025-10-12 19:25 - Phase 4: sqlx 0.7 → 0.8 アップグレード完了 ✅
+
+- **CI実行結果 (Run 18442001694)**:
+  - ✅ Test Suite: 21テスト全て通過 (3m 53s)
+  - ✅ Lint (Clippy): 警告ゼロ継続 (-D warnings)
+  - ✅ Format Check: 成功
+  - ✅ Security Audit: 成功
+  - ✅ SBOM Generation: 成功
+  - ✅ CI Guard: 全チェック成功
+
+- **アップグレード内容**:
+  - sqlx 0.7.4 → 0.8.6 にバージョンアップ
+  - PostgreSQL async driver の最新版採用
+  - 破壊的変更なし（全テスト通過）
+
+- **CVE修正**:
+  - ✅ RUSTSEC-2024-0363 解決
+
+- **検証プロセス**:
+  1. Cargo.toml 更新 (version = "0.8")
+  2. `cargo update -p sqlx` → 0.8.6
+  3. `cargo check` → 成功
+  4. `cargo clippy --all-targets --all-features -- -D warnings` → 警告ゼロ
+  5. CI全ジョブ通過
+
+- **判定**: **Phase 4 sqlx アップグレード完了** ✅
+
+### 2025-10-12 19:32 - Phase 4: wasmtime 17 → 24 アップグレード完了 ✅
+
+- **CI実行結果 (Run 18442115142)**:
+  - ✅ Test Suite: 21テスト全て通過 (3m 50s)
+  - ✅ Lint (Clippy): 警告ゼロ継続 (-D warnings, 3m 30s)
+  - ✅ Format Check: 成功 (18s)
+  - ✅ Security Audit: 成功 (2m 42s)
+  - ✅ SBOM Generation: 成功 (55s)
+  - ✅ CI Guard: 全チェック成功 (4m 2s)
+
+- **アップグレード内容**:
+  - wasmtime 17.0.3 → 24.0.4 にバージョンアップ
+  - メジャーバージョン7段階ジャンプ
+  - WASI sandbox 互換性維持
+  - Windows filename bug fixes 含む
+
+- **CVE修正**:
+  - ✅ RUSTSEC-2024-0438 解決
+  - ✅ RUSTSEC-2025-0046 解決
+
+- **検証プロセス**:
+  1. Cargo.toml 更新 (version = "24")
+  2. `cargo update -p wasmtime` → 24.0.4
+  3. `cargo check` → 成功 (macOS MallocStackLogging警告は無害)
+  4. `cargo clippy --all-targets --all-features -- -D warnings` → 警告ゼロ
+  5. CI全ジョブ通過
+
+- **コミット**: `3ff1e21` - "chore: upgrade wasmtime from 17 to 24.0.4"
+
+- **判定**: **Phase 4 wasmtime アップグレード完了** ✅
+
+- **次フェーズ (Phase 4 残タスク)**:
+  - protobuf/prometheus系アップグレード (進行中)
+  - dotenv → dotenvy 移行
+  - 全リグレッションテスト実行
+
 ---
 
 ## 6. 仕様書参照マップ（重要節の要旨）
