@@ -885,23 +885,34 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 3. [x] 利用状況ダッシュボード実装
 4. [x] カード情報表示（末尾4桁 + ブランド）
 
-#### 5.6 API Key 管理UI 🔑
+#### 5.6 API Key 管理UI 🔑 ✅
 
-**バックエンド**:
-- 既存の `POST /v1/keys`, `GET /v1/keys`, `DELETE /v1/keys/:prefix` を利用
+**完了日時**: 2025-10-12 23:45
+**コミット**: `c81eb1a` - "Phase 5.6: API Key Management UI"
 
-**フロントエンド**:
-1. [ ] API Key一覧表示
-   - prefix表示
-   - 作成日時
-   - 削除ボタン
-2. [ ] 新規API Key発行フォーム
-   - 名前入力（オプション）
-   - 発行ボタン
-3. [ ] 発行後のモーダル表示
-   - フルキー表示（一度のみ）
-   - コピーボタン
-   - 警告メッセージ
+**バックエンド実装** (src/routes/keys.rs):
+- ✅ Cookie認証対応のAPIエンドポイント追加
+- ✅ `POST /api-keys` - Cookie認証でAPI key作成
+- ✅ `GET /api-keys` - Cookie認証でAPI key一覧取得
+- ✅ `DELETE /api-keys/{id}` - Cookie認証でAPI key削除
+- ✅ ログにGitHubユーザー名追加
+
+**フロントエンド実装**:
+- ✅ `useApiKeys()` フック実装 (frontend/lib/apiKeys.ts)
+  - `createApiKey()`, `deleteApiKey()` メソッド
+  - SWR自動リフレッシュ
+- ✅ `/dashboard/api-keys` ページ実装
+  - API key作成フォーム（名前入力）
+  - 作成後のモーダル表示（一度のみ表示）
+  - クリップボードコピー機能
+  - API key一覧表示
+  - 削除確認ダイアログ
+  - 作成日時・最終使用日時表示
+
+**実装タスク**:
+1. [x] API Key一覧表示（作成日時・最終使用日時）
+2. [x] 新規API Key発行フォーム（名前入力）
+3. [x] 発行後のモーダル表示（フルキー一度のみ、コピー機能、警告）
 
 #### 5.7 月次請求 📅
 
