@@ -727,21 +727,31 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 
 ### Phase 5 タスクブレイクダウン
 
-#### 5.1 フロントエンド基盤構築 🎨
+#### 5.1 フロントエンド基盤構築 🎨 ✅
+
+**完了日時**: 2025-10-12 21:15
+**コミット**: `58dd37d` - "feat: Phase 5.1 - フロントエンド基盤構築完了"
 
 **技術スタック決定**:
-- ❓ Next.js 14 (App Router) + TypeScript
-- ❓ Tailwind CSS + shadcn/ui
-- ❓ React Hook Form + Zod
-- ❓ SWR for data fetching
-- ❓ Stripe Elements (カード登録UI)
+- ✅ Next.js 14 (App Router) + TypeScript
+- ✅ Tailwind CSS v4 + shadcn/ui
+- ✅ React Hook Form + Zod
+- ✅ SWR for data fetching
+- ⏳ Stripe Elements (カード登録UI) - Phase 5.3で実装予定
 
 **実装タスク**:
-1. [ ] Next.js プロジェクト初期化
-2. [ ] TypeScript + ESLint + Prettier 設定
-3. [ ] Tailwind CSS + shadcn/ui セットアップ
-4. [ ] `/login` ページ実装（GitHub OAuth）
-5. [ ] `/dashboard` レイアウト実装（ヘッダー、サイドバー）
+1. [x] Next.js プロジェクト初期化 (Next.js 15.5.4)
+2. [x] TypeScript + ESLint 設定
+3. [x] Tailwind CSS v4 + shadcn/ui セットアップ (theme variables)
+4. [x] `/login` ページ実装（GitHub OAuth ボタン）
+5. [x] `/dashboard` レイアウト実装（ナビゲーション）
+
+**実装詳細**:
+- 📁 `/frontend` ディレクトリ作成（monorepo構成）
+- 🎨 Tailwind CSS v4 使用（`@tailwindcss/postcss`）
+- 🎯 shadcn/ui テーマ変数設定（light/dark mode対応）
+- 📦 依存関係: react-hook-form, zod, @hookform/resolvers, swr
+- ✅ ビルド検証済み: 全ページ正常にコンパイル
 
 #### 5.2 認証フロー統合 🔐
 
