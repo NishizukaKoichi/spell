@@ -825,17 +825,35 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 5. `POST /payment-method` で payment_method_id 保存
 6. 初期上限 $50 自動設定
 
-#### 5.4 上限変更UI 💰
+#### 5.4 上限変更UI 💰 ✅
 
-**バックエンド**:
-- 既存の `PUT /v1/budgets` を利用
-- $10〜$500 の範囲バリデーション追加
+**完了日時**: 2025-10-12 22:45
+**コミット**: `51d455f` - "Phase 5.4: Budget limit change UI"
 
-**フロントエンド**:
-1. [ ] 現在の上限表示コンポーネント
-2. [ ] 上限変更フォーム（スライダー or 入力）
-3. [ ] 範囲バリデーション（$10-$500）
-4. [ ] 即時反映確認UI
+**バックエンド実装** (src/routes/budgets.rs):
+- ✅ 予算制約定数追加: `MIN_BUDGET_CENTS = 1000` ($10), `MAX_BUDGET_CENTS = 50000` ($500)
+- ✅ `GET /budget` エンドポイント実装（Cookie認証）
+- ✅ `PUT /budget` エンドポイント実装（Cookie認証）
+- ✅ hard_limit_cents / soft_limit_cents の $10-$500 範囲バリデーション
+- ✅ 予算更新ログ出力
+
+**フロントエンド実装**:
+- ✅ `useBudget()` フック実装 (frontend/lib/budget.ts)
+  - SWR で予算取得
+  - `updateBudget()` メソッド実装
+- ✅ BudgetManager コンポーネント実装 (frontend/components/BudgetManager.tsx)
+  - 現在の上限表示（デフォルト $50）
+  - 上限変更フォーム（数値入力）
+  - クライアント側バリデーション（$10-$500）
+  - 成功/エラー通知
+  - 編集モード切り替え
+- ✅ `/dashboard/billing` ページに統合
+
+**実装タスク**:
+1. [x] 現在の上限表示コンポーネント
+2. [x] 上限変更フォーム（数値入力）
+3. [x] 範囲バリデーション（$10-$500）
+4. [x] 即時反映確認UI
 
 #### 5.5 利用状況表示 📊
 
