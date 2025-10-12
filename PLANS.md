@@ -540,6 +540,43 @@
   - dotenv → dotenvy 移行
   - 全リグレッションテスト実行
 
+### 2025-10-12 19:40 - Phase 4: prometheus 0.13 → 0.14 アップグレード完了 ✅
+
+- **CI実行結果 (Run 18442207940)**:
+  - ✅ Test Suite: 21テスト全て通過 (3m 51s)
+  - ✅ Lint (Clippy): 警告ゼロ継続 (-D warnings, 3m 23s)
+  - ✅ Format Check: 成功 (12s)
+  - ✅ Security Audit: 成功 (2m 30s)
+  - ✅ SBOM Generation: 成功 (1m 0s)
+  - ✅ CI Guard: 全チェック成功 (4m 7s)
+
+- **アップグレード内容**:
+  - prometheus 0.13.4 → 0.14.0 にバージョンアップ
+  - **protobuf 2.28.0 → 3.7.2** に自動更新（§9.4要件達成）
+  - Prometheusメトリクスエンドポイント互換性維持
+
+- **CVE修正**:
+  - ✅ RUSTSEC-2024-0437 解決（protobuf脆弱性）
+
+- **検証プロセス**:
+  1. Cargo.toml 更新 (version = "0.14")
+  2. `cargo update -p prometheus` → 0.14.0 + protobuf 3.7.2
+  3. `cargo check` → 成功
+  4. `cargo clippy --all-targets --all-features -- -D warnings` → 警告ゼロ
+  5. CI全ジョブ通過
+
+- **コミット**: `0089c9c` - "chore: upgrade prometheus from 0.13 to 0.14.0"
+
+- **判定**: **Phase 4 prometheus/protobuf アップグレード完了** ✅
+
+- **残存脆弱性**:
+  - rsa 0.9.8 (RUSTSEC-2023-0071, Medium): sqlx-mysqlから推移的依存、PostgreSQL使用のため影響なし
+  - dotenv 0.15.0 (RUSTSEC-2021-0141): 次タスクで修正予定
+
+- **次フェーズ (Phase 4 残タスク)**:
+  - dotenv → dotenvy 移行 (進行中)
+  - 全リグレッションテスト実行
+
 ---
 
 ## 6. 仕様書参照マップ（重要節の要旨）
