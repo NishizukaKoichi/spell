@@ -7,32 +7,73 @@
 
 ## 0. スコープ宣言（変更時はここを必ず更新）
 
-### 今スプリントの目標
+### 🎯 現在のフェーズ: Phase 5 - Caster Portal 課金UI
 
-**Phase 2 完成 → Phase 3 準備 → v1.0 リリース**
+**完了済フェーズ**:
+- ✅ Phase 2: 基本API実装（Budget enforcement含む）
+- ✅ Phase 3: GDPR/SBOM/Sigstore実装（§30準拠）
+- ✅ Phase 4: セキュリティアップグレード＆コード品質向上
 
-1. **Phase 2 残タスク完了**
-   - E2Eテスト実装（自動化）
-   - CI/CD パイプライン構築（GitHub Actions）
-   - ブランチ保護設定
-   - Release Drafter 設定
+**Phase 5 目標: 誰でも触れる公開フェーズへの移行**
 
-2. **Phase 3 準備（仕様書§30準拠）**
-   - GDPR/CCPA/個人情報保護法 対応エンドポイント実装
-   - データ削除/エクスポートAPI
-   - SBOM生成＆検証（§9.4必須）
-   - Sigstore統合（Fulcio + Rekor）
+### Phase 5 実装範囲
 
-3. **v1.0 品質基準達成**
-   - すべてのAPI仕様（§13-21）完全実装
-   - セキュリティ監査通過
-   - 性能目標達成（p90 < 500ms）
+1. **GitHub OAuth ログイン**
+   - 既存の `/auth/github` と `/auth/callback` を利用
+   - Dashboard へのルーティング実装
 
-### 非目的（触らない領域）
+2. **Stripe カード登録（SetupIntent）**
+   - Dashboard に「カード登録」ボタン設置
+   - Stripe SetupIntent 呼び出し
+   - `billing_accounts.payment_method_id` 更新
 
-- ❌ 新しいフロントエンド（Phase 4以降）
-- ❌ マルチリージョン展開（Phase 3後半以降）
-- ❌ SOC 2認証（Phase 4以降）
+3. **初期上限自動設定**
+   - カード登録完了時に `hard_limit_cents = 5000` ($50) 自動設定
+   - UI に「現在の上限 $50」表示
+
+4. **上限変更UI**
+   - Dashboard に上限変更フォーム設置（$10〜$500）
+   - `billing_accounts.hard_limit_cents` 更新
+   - 即時反映（既存の402 enforcement利用）
+
+5. **利用状況表示**
+   - 今月の利用金額（集計値）
+   - 上限額 / 残り利用可能額
+   - 登録済み支払い手段（カード末尾4桁）
+
+6. **API Key 管理UI**
+   - Dashboard で新規API Key発行
+   - `apikeys` テーブル連携
+   - コピー可能なUI
+
+7. **月次請求**
+   - Stripe Invoice API で毎月末実行
+
+### Phase 5 UI 構成
+
+```
+/login          → GitHub OAuth
+/dashboard      → メインダッシュボード
+  ├─ カード登録（未登録時）
+  ├─ 現在の上限表示＆変更フォーム
+  ├─ 利用状況グラフ
+  └─ API Key管理（一覧＆新規発行）
+```
+
+### Phase 5 受け入れ基準
+
+- ✅ GitHub ログイン後、カード登録と上限設定が完了できる
+- ✅ 初期上限は自動で $50、UI で自由に変更可能（$10-$500）
+- ✅ 上限を超えたら 402 Payment Required が返る（既存機能）
+- ✅ API Key が発行でき、`/v1/cast` を実際に叩ける
+- ✅ 利用状況がリアルタイムで確認できる
+
+### 非目的（Phase 5では触らない）
+
+- ❌ マルチリージョン展開
+- ❌ SOC 2認証
+- ❌ 管理者用ダッシュボード
+- ❌ チーム機能
 
 ### 成功指標（Definition of Done）
 
@@ -675,6 +716,173 @@
 
 Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達。
 全21テスト緑、セキュリティCritical/Highゼロ、Clippy警告ゼロ。
+
+---
+
+## 🚀 Phase 5 実装計画 - Caster Portal 課金UI
+
+### 2025-10-12 19:52 - Phase 5 設計開始
+
+**目的**: Caster が自分でクレジットカードを登録し、月額の利用上限金額を設定した上で API を利用できるようにする。
+
+### Phase 5 タスクブレイクダウン
+
+#### 5.1 フロントエンド基盤構築 🎨
+
+**技術スタック決定**:
+- ❓ Next.js 14 (App Router) + TypeScript
+- ❓ Tailwind CSS + shadcn/ui
+- ❓ React Hook Form + Zod
+- ❓ SWR for data fetching
+- ❓ Stripe Elements (カード登録UI)
+
+**実装タスク**:
+1. [ ] Next.js プロジェクト初期化
+2. [ ] TypeScript + ESLint + Prettier 設定
+3. [ ] Tailwind CSS + shadcn/ui セットアップ
+4. [ ] `/login` ページ実装（GitHub OAuth）
+5. [ ] `/dashboard` レイアウト実装（ヘッダー、サイドバー）
+
+#### 5.2 認証フロー統合 🔐
+
+**既存API利用**:
+- `GET /auth/github` - OAuth開始
+- `GET /auth/callback` - OAuth callback
+- Session cookie管理
+
+**実装タスク**:
+1. [ ] フロントエンドから `/auth/github` 呼び出し
+2. [ ] Callback後のリダイレクト処理（`/dashboard` へ）
+3. [ ] Session状態管理（SWR + middleware）
+4. [ ] Protected Routes実装（未ログイン時 `/login` へ）
+5. [ ] ログアウト機能
+
+#### 5.3 カード登録（Stripe SetupIntent）💳
+
+**バックエンド**:
+1. [ ] `POST /v1/billing/setup-intent` エンドポイント実装
+   - Stripe SetupIntent作成
+   - `client_secret` 返却
+2. [ ] `POST /v1/billing/payment-method` エンドポイント実装
+   - `payment_method_id` 保存
+   - `billing_accounts.payment_method_id` 更新
+   - 初期上限 `hard_limit_cents = 5000` 自動設定
+
+**フロントエンド**:
+1. [ ] カード登録フォーム実装（Stripe Elements）
+2. [ ] SetupIntent フロー統合
+3. [ ] 成功時の confirmation UI
+4. [ ] エラーハンドリング
+
+#### 5.4 上限変更UI 💰
+
+**バックエンド**:
+- 既存の `PUT /v1/budgets` を利用
+- $10〜$500 の範囲バリデーション追加
+
+**フロントエンド**:
+1. [ ] 現在の上限表示コンポーネント
+2. [ ] 上限変更フォーム（スライダー or 入力）
+3. [ ] 範囲バリデーション（$10-$500）
+4. [ ] 即時反映確認UI
+
+#### 5.5 利用状況表示 📊
+
+**バックエンド**:
+1. [ ] `GET /v1/billing/usage` エンドポイント実装
+   - 今月の利用金額集計
+   - 上限額取得
+   - 残り利用可能額計算
+2. [ ] `GET /v1/billing/payment-method` エンドポイント実装
+   - カード末尾4桁取得（Stripe API経由）
+
+**フロントエンド**:
+1. [ ] 利用状況ダッシュボード実装
+   - 今月の利用金額表示
+   - プログレスバー（利用率）
+   - 上限額 / 残額表示
+2. [ ] カード情報表示（末尾4桁 + ブランド）
+3. [ ] グラフ表示（オプション）
+
+#### 5.6 API Key 管理UI 🔑
+
+**バックエンド**:
+- 既存の `POST /v1/keys`, `GET /v1/keys`, `DELETE /v1/keys/:prefix` を利用
+
+**フロントエンド**:
+1. [ ] API Key一覧表示
+   - prefix表示
+   - 作成日時
+   - 削除ボタン
+2. [ ] 新規API Key発行フォーム
+   - 名前入力（オプション）
+   - 発行ボタン
+3. [ ] 発行後のモーダル表示
+   - フルキー表示（一度のみ）
+   - コピーボタン
+   - 警告メッセージ
+
+#### 5.7 月次請求 📅
+
+**実装タスク**:
+1. [ ] Stripe Invoice 自動生成スケジューラー
+   - Cron job 設定（毎月末）
+   - `usage_counters` 集計
+   - Invoice 作成
+2. [ ] 請求履歴エンドポイント（オプション）
+   - `GET /v1/billing/invoices`
+3. [ ] Dashboard に請求履歴表示（オプション）
+
+### Phase 5 実装順序
+
+**Week 1: 基盤構築**
+1. フロントエンド初期化
+2. 認証フロー統合
+3. Dashboard レイアウト
+
+**Week 2: 決済機能**
+1. カード登録（SetupIntent）
+2. 初期上限自動設定
+3. 上限変更UI
+
+**Week 3: 管理機能**
+1. 利用状況表示
+2. API Key管理UI
+3. 統合テスト
+
+**Week 4: 月次請求**
+1. Invoice自動生成
+2. E2Eテスト
+3. ドキュメント整備
+
+### Phase 5 リスクと対策
+
+**技術リスク**:
+- ❗ Stripe Elements の複雑さ → 公式ドキュメント厳守、サンプルコード活用
+- ❗ Session管理の安全性 → SameSite=Strict, Secure cookie, CSRF対策
+- ❗ フロントエンド/バックエンドの型安全性 → OpenAPI spec生成、tRPC検討
+
+**ビジネスリスク**:
+- ❗ 不正利用対策 → rate limiting（既存）、上限設定（既存）、監視アラート
+- ❗ PCI DSS準拠 → Stripe Elements使用でScope削減（カード情報は直接扱わない）
+
+### Phase 5 受け入れテスト項目
+
+1. [ ] GitHub OAuth ログインができる
+2. [ ] カード登録が完了し、初期上限$50が設定される
+3. [ ] 上限を$100に変更できる
+4. [ ] API Keyを発行し、コピーできる
+5. [ ] `/v1/cast` を叩いて利用金額が増加する
+6. [ ] 利用状況に反映される（リアルタイム）
+7. [ ] 上限を超えると402が返る
+8. [ ] カード情報（末尾4桁）が表示される
+
+### Phase 5 マイルストーン
+
+- 🎯 **M1 (Week 1)**: 認証済みDashboard表示
+- 🎯 **M2 (Week 2)**: カード登録＆上限設定完了
+- 🎯 **M3 (Week 3)**: API Key発行＆利用状況表示
+- 🎯 **M4 (Week 4)**: 月次請求＆本番リリース
 
 ---
 
