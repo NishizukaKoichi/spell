@@ -1,0 +1,48 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Only deploy if CI passed
+    needs: []
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: |
+          flyctl deploy --remote-only --app spell-platform
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Health Check
+        run: |
+          sleep 10
+          HEALTH=$(curl -s https://spell-platform.fly.dev/healthz)
+          if echo "$HEALTH" | jq -e '.status == "ok"' > /dev/null; then
+            echo "✅ Deployment successful - API is healthy"
+          else
+            echo "❌ Deployment failed - API health check failed"
+            exit 1
+          fi
+
+      - name: Verify Metrics
+        run: |
+          METRICS=$(curl -s https://spell-platform.fly.dev/metrics)
+          if echo "$METRICS" | grep -q "spell_cast_total"; then
+            echo "✅ Metrics endpoint available"
+          else
+            echo "❌ Metrics endpoint not working"
+            exit 1
+          fi
