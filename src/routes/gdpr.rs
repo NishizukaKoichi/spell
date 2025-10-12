@@ -1,7 +1,7 @@
 // GDPR/CCPA/Japanese Personal Information Protection Act Compliance
 // Implements §30 data deletion and export requirements
 
-use actix_web::{web, HttpRequest, HttpResponse, Result};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Result};
 use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -208,7 +208,8 @@ pub async fn export_user_data(req: HttpRequest, pool: web::Data<PgPool>) -> Resu
         hard_limit_cents: row.hard_limit_cents,
         notify_thresholds: row
             .notify_thresholds_json
-            .as_array()
+            .as_ref()
+            .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
                     .filter_map(|v| v.as_i64().map(|i| i as i32))
