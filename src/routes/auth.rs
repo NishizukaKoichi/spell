@@ -1,6 +1,7 @@
 use crate::models::{GitHubAccessTokenResponse, GitHubUser, User};
 use crate::AppState;
 use actix_web::cookie::{Cookie, SameSite};
+use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
@@ -168,8 +169,8 @@ async fn github_callback(
     let cookie = build_session_cookie(&session_token);
 
     HttpResponse::Found()
-        .append_header(("Location", format!("{frontend_url}/dashboard")))
-        .cookie(cookie)
+        .append_header((header::LOCATION, format!("{frontend_url}/dashboard")))
+        .append_header((header::SET_COOKIE, cookie.to_string()))
         .finish()
 }
 
@@ -243,7 +244,7 @@ async fn logout(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
     let cookie = build_session_cookie_deletion();
 
     HttpResponse::Ok()
-        .cookie(cookie)
+        .append_header((header::SET_COOKIE, cookie.to_string()))
         .json(serde_json::json!({
             "status": "logged_out"
         }))
