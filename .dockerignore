@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# CI/CD
+.github/
+
+# Local development
+target/
+.env
+.env.*
+!.sqlx/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tests
+test_*.sh
+tests/
+
+# Build artifacts
+*.log
+*.tmp
