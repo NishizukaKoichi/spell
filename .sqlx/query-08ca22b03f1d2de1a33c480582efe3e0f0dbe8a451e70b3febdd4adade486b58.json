@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT period, soft_limit_cents, hard_limit_cents, notify_thresholds_json\n        FROM budgets\n        WHERE user_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "period",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "soft_limit_cents",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "hard_limit_cents",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "notify_thresholds_json",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "08ca22b03f1d2de1a33c480582efe3e0f0dbe8a451e70b3febdd4adade486b58"
+}

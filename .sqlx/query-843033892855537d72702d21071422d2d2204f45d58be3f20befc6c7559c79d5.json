@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, spell_name, cost_cents, created_at\n        FROM casts\n        WHERE user_id = $1\n        ORDER BY created_at DESC\n        LIMIT 1000\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "spell_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost_cents",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "843033892855537d72702d21071422d2d2204f45d58be3f20befc6c7559c79d5"
+}
