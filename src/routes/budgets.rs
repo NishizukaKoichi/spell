@@ -8,7 +8,7 @@ use crate::services::budget_service::BudgetService;
 use crate::AppState;
 
 // Minimum and maximum budget limits in cents ($10 - $500)
-const MIN_BUDGET_CENTS: i32 = 1000;  // $10
+const MIN_BUDGET_CENTS: i32 = 1000; // $10
 const MAX_BUDGET_CENTS: i32 = 50000; // $500
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -26,7 +26,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     .service(
         web::resource("/budget")
             .route(web::get().to(get_budget_cookie))
-            .route(web::put().to(update_budget_cookie))
+            .route(web::put().to(update_budget_cookie)),
     );
 }
 
@@ -93,7 +93,7 @@ async fn create_budget(
 
     // Validate limits
     if let Some(hard) = req.hard_limit_cents {
-        if hard < MIN_BUDGET_CENTS || hard > MAX_BUDGET_CENTS {
+        if !(MIN_BUDGET_CENTS..=MAX_BUDGET_CENTS).contains(&hard) {
             return Err(actix_web::error::ErrorBadRequest(format!(
                 "Hard limit must be between ${} and ${}",
                 MIN_BUDGET_CENTS / 100,
@@ -103,7 +103,7 @@ async fn create_budget(
     }
 
     if let Some(soft) = req.soft_limit_cents {
-        if soft < MIN_BUDGET_CENTS || soft > MAX_BUDGET_CENTS {
+        if !(MIN_BUDGET_CENTS..=MAX_BUDGET_CENTS).contains(&soft) {
             return Err(actix_web::error::ErrorBadRequest(format!(
                 "Soft limit must be between ${} and ${}",
                 MIN_BUDGET_CENTS / 100,
@@ -301,7 +301,7 @@ async fn update_budget_cookie(
 
     // Validate limits
     if let Some(hard) = req.hard_limit_cents {
-        if hard < MIN_BUDGET_CENTS || hard > MAX_BUDGET_CENTS {
+        if !(MIN_BUDGET_CENTS..=MAX_BUDGET_CENTS).contains(&hard) {
             return Err(actix_web::error::ErrorBadRequest(format!(
                 "Hard limit must be between ${} and ${}",
                 MIN_BUDGET_CENTS / 100,
@@ -311,7 +311,7 @@ async fn update_budget_cookie(
     }
 
     if let Some(soft) = req.soft_limit_cents {
-        if soft < MIN_BUDGET_CENTS || soft > MAX_BUDGET_CENTS {
+        if !(MIN_BUDGET_CENTS..=MAX_BUDGET_CENTS).contains(&soft) {
             return Err(actix_web::error::ErrorBadRequest(format!(
                 "Soft limit must be between ${} and ${}",
                 MIN_BUDGET_CENTS / 100,
@@ -355,7 +355,11 @@ async fn update_budget_cookie(
     let thresholds: Vec<i32> =
         serde_json::from_value(budget.notify_thresholds_json.clone()).unwrap_or_default();
 
-    log::info!("Budget updated for user {} to ${}", user.github_login, budget.hard_limit_cents.unwrap_or(0) / 100);
+    log::info!(
+        "Budget updated for user {} to ${}",
+        user.github_login,
+        budget.hard_limit_cents.unwrap_or(0) / 100
+    );
 
     Ok(HttpResponse::Ok().json(BudgetResponse {
         user_id: budget.user_id,

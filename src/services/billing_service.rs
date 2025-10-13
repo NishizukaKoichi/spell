@@ -19,11 +19,7 @@ impl BillingService {
         let last_month_end = now.date_naive().with_day(1).unwrap() - Duration::days(1);
         let last_month_start = last_month_end.with_day(1).unwrap();
 
-        log::info!(
-            "Processing billing for period: {} to {}",
-            last_month_start,
-            last_month_end
-        );
+        log::info!("Processing billing for period: {last_month_start} to {last_month_end}");
 
         // Get all users with usage in the last month
         let users_with_usage: Vec<(Uuid, i64, i32)> = sqlx::query_as(
@@ -49,8 +45,15 @@ impl BillingService {
         let mut error_count = 0;
 
         for (user_id, total_calls, total_cost) in users_with_usage {
-            match Self::bill_user(stripe, db, &user_id, total_calls, total_cost, &last_month_start)
-                .await
+            match Self::bill_user(
+                stripe,
+                db,
+                &user_id,
+                total_calls,
+                total_cost,
+                &last_month_start,
+            )
+            .await
             {
                 Ok(invoice_id) => {
                     log::info!(
@@ -63,17 +66,13 @@ impl BillingService {
                     success_count += 1;
                 }
                 Err(e) => {
-                    log::error!("Failed to bill user {}: {}", user_id, e);
+                    log::error!("Failed to bill user {user_id}: {e}");
                     error_count += 1;
                 }
             }
         }
 
-        log::info!(
-            "Monthly billing completed: {} successful, {} errors",
-            success_count,
-            error_count
-        );
+        log::info!("Monthly billing completed: {success_count} successful, {error_count} errors");
 
         Ok(())
     }
@@ -98,7 +97,7 @@ impl BillingService {
         .await?;
 
         let customer_id = customer_id
-            .ok_or_else(|| anyhow::anyhow!("No billing account found for user {}", user_id))?
+            .ok_or_else(|| anyhow::anyhow!("No billing account found for user {user_id}"))?
             .0;
 
         // Create invoice description

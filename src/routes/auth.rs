@@ -161,8 +161,8 @@ async fn github_callback(
     log::info!("User {} logged in successfully", user.github_login);
 
     // Set session cookie and redirect to frontend
-    let frontend_url = env::var("FRONTEND_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let frontend_url =
+        env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     let cookie = format!(
         "spell_session={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
@@ -171,7 +171,7 @@ async fn github_callback(
     );
 
     HttpResponse::Found()
-        .append_header(("Location", format!("{}/dashboard", frontend_url)))
+        .append_header(("Location", format!("{frontend_url}/dashboard")))
         .append_header(("Set-Cookie", cookie))
         .finish()
 }
