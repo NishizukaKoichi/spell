@@ -72,6 +72,7 @@ async fn main() -> std::io::Result<()> {
             .configure(routes::metrics::configure)
             .configure(routes::auth::configure)
             .configure(routes::gdpr::config)
+            .configure(routes::admin::configure)
             .service(
                 web::scope("/v1")
                     .configure(routes::cast::configure)

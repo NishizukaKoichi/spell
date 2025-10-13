@@ -1,0 +1,28 @@
+name: Monthly Billing
+
+on:
+  schedule:
+    # Run on the 1st of every month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  process-billing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run monthly billing
+        env:
+          API_URL: ${{ secrets.API_URL || 'https://spell-platform.fly.dev' }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+        run: |
+          chmod +x scripts/run_monthly_billing.sh
+          ./scripts/run_monthly_billing.sh
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Monthly billing failed! Check the logs for details."
+          # Add notification logic here (e.g., Slack, email)

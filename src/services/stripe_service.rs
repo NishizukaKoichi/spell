@@ -1,7 +1,8 @@
 use stripe::{
     CheckoutSession, CheckoutSessionMode, Client, CreateCheckoutSession,
-    CreateCheckoutSessionLineItems, CreatePrice, CreatePriceRecurring, CreateSetupIntent,
-    Currency, Customer, EventObject, EventType, PaymentMethod, Price, SetupIntent, Webhook,
+    CreateCheckoutSessionLineItems, CreateInvoice, CreateInvoiceItem, CreatePrice,
+    CreatePriceRecurring, CreateSetupIntent, Currency, Customer, EventObject, EventType, Invoice,
+    InvoiceItem, PaymentMethod, Price, SetupIntent, Webhook,
 };
 use uuid::Uuid;
 
@@ -360,5 +361,40 @@ impl StripeService {
         .await?;
 
         Ok(payment_method)
+    }
+
+    /// Create monthly invoice for a customer
+    pub async fn create_monthly_invoice(
+        &self,
+        customer_id: &str,
+        amount_cents: i32,
+        description: &str,
+    ) -> Result<Invoice, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        // Create invoice item
+        let mut item_params = CreateInvoiceItem::new(customer_id.parse()?);
+        item_params.amount = Some(amount_cents.into());
+        item_params.currency = Some(Currency::USD);
+        item_params.description = Some(description);
+
+        InvoiceItem::create(client, item_params).await?;
+
+        // Create invoice
+        let mut invoice_params = CreateInvoice::new();
+        invoice_params.customer = Some(customer_id.parse()?);
+        invoice_params.auto_advance = Some(true); // Automatically finalize and attempt payment
+        invoice_params.collection_method = Some(stripe::CollectionMethod::ChargeAutomatically);
+        invoice_params.description = Some(description);
+
+        let invoice = Invoice::create(client, invoice_params).await?;
+
+        // Finalize invoice
+        let finalized = Invoice::finalize(client, &invoice.id, Default::default()).await?;
+
+        Ok(finalized)
     }
 }
