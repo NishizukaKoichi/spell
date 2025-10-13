@@ -52,6 +52,12 @@ export default function DashboardLayout({
                   Dashboard
                 </Link>
                 <Link
+                  href="/dashboard/spells"
+                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                >
+                  Scroll
+                </Link>
+                <Link
                   href="/dashboard/api-keys"
                   className="px-3 py-2 rounded-md text-sm font-medium hover:bg-accent transition-colors"
                 >
