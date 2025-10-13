@@ -1,8 +1,8 @@
 # Spell Platform 
 
-**Document Version**: 1.4.0  
-**Status**: Enterprise Grade  
-**Last Updated**: 2025-10-04  
+**Document Version**: 1.4.1
+**Status**: Enterprise Grade
+**Last Updated**: 2025-10-13
 **License**: Proprietary
 
 ---
@@ -178,6 +178,8 @@
                         └─────────────────┘
 ```
 
+> **Note:** Caster Web UI (Next.js on Vercel) calls the API Gateway (`https://api.magicspell.io` / Fly.io).
+
 ---
 
 ## 4. Technology Stack
@@ -186,6 +188,7 @@
 
 |Component|Technology|Version|Rationale|
 |---|---|---|---|
+|**Web Frontend (Caster)**|Next.js (App Router) on Vercel|15.x|課金UI/ダッシュボード|
 |**API Server**|Rust (Actix-web)|4.x|高性能、メモリ安全、async|
 |**Runtime**|wasmer|4.x|WASI準拠、AOT/JIT、sandbox|
 |**Database**|PostgreSQL|16+|ACID保証、JSON型、full-text|
@@ -1282,7 +1285,84 @@ Response:
 
 ## 32. Deployment
 
-[Same as v1.3]
+### 32.1 Domains & Endpoints
+
+- **Public Web (Caster UI)**: `https://magicspell.io` (Vercel)
+- **Public API**: `https://api.magicspell.io` (Fly.io / Actix)
+- **Webhook Receiver**: `https://api.magicspell.io/v1/webhooks/stripe`
+- **Artifact CDN**: Cloudflare R2/S3 + Cloudflare CDN
+
+### 32.2 DNS
+
+- **APEX/WWW** → Vercel (DNS managed by Vercel, NS records delegated)
+- **`api.magicspell.io`** → Fly.io (CNAME → `<your-fly-app>.fly.dev`, Managed TLS)
+
+**CAA Records (Recommended)**:
+```
+CAA 0 issue "letsencrypt.org"
+CAA 0 issuewild "letsencrypt.org"
+```
+
+### 32.3 Environment Variables / Secrets (Caster UI)
+
+- `NEXT_PUBLIC_API_BASE=https://api.magicspell.io`
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (Vercel Project Secrets)
+- `STRIPE_PUBLISHABLE_KEY` / `STRIPE_SECRET_KEY` (Vercel)
+- `WEBHOOK_SIGNING_SECRET` (API side)
+
+**NextAuth (if using NextAuth for GitHub OAuth)**:
+- `NEXTAUTH_URL=https://magicspell.io`
+- `NEXTAUTH_SECRET=<32+ random characters>`
+
+### 32.4 Release Flow
+
+- **Caster UI**: GitHub → Vercel Preview → Production (`magicspell.io`)
+- **API**: GitHub Actions → Fly.io deploy → DB migration (sqlx)
+
+**WWW/Hardening**:
+- `www` → `apex` redirect (Vercel Redirects)
+- IPv6 (AAAA) enabled
+- HSTS preload申請 is post-production stabilization
+
+**OAuth Redirect URIs (Caster UI)**:
+- `https://magicspell.io/api/auth/callback/github`
+
+**API origins (machine-to-machine)**:
+- `https://api.magicspell.io`
+
+### 32.5 CORS & CSRF
+
+**Allowed Origins (CORS)**:
+- `https://magicspell.io` (Caster UI / Vercel)
+- `https://studio.magicspell.dev` (Future: Maker-facing)
+
+**CORS Policy (API)**:
+- Origin allowlist: Above only
+- Credentials: `true` (for sessions/Stripe)
+- Methods: `GET, POST, PUT, PATCH, DELETE`
+- Headers: `Authorization, Content-Type, Stripe-Signature, X-CSRF-Token`
+- Vary: `Origin`
+- Access-Control-Expose-Headers: `RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset`
+
+### 32.6 Content Security Policy
+
+**Caster UI (Vercel) CSP**:
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' vercel-insights.com https://js.stripe.com;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https://avatars.githubusercontent.com;
+connect-src 'self' https://api.magicspell.io https://api.stripe.com;
+frame-src https://js.stripe.com;
+frame-ancestors 'none';
+upgrade-insecure-requests;
+```
+
+**Security Headers (Caster UI / API common)**:
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `X-Frame-Options: DENY`
+- `Permissions-Policy: geolocation=(), microphone=(), camera=()`
 
 ---
 
@@ -1418,6 +1498,7 @@ paths:
 |1.2.0|2025-10-04|Budget management|
 |1.3.0|2025-10-04|Sigstore, tax, SLO, abuse detection|
 |1.4.0|2025-10-04|**SBOM required, GDPR/CCPA/Japan compliance [ENTERPRISE GRADE]**|
+|1.4.1|2025-10-13|Front-end deployment details added (Vercel + domains, CSP/CORS/HSTS hardening, OAuth/Stripe variables). Phase 5 deployment specifications.|
 
 **Enterprise Readiness Checklist:**
 
