@@ -28,14 +28,22 @@ jobs:
 
       - name: Health Check
         run: |
-          sleep 10
-          HEALTH=$(curl -s https://spell-platform.fly.dev/healthz)
-          if echo "$HEALTH" | jq -e '.status == "ok"' > /dev/null; then
-            echo "✅ Deployment successful - API is healthy"
-          else
-            echo "❌ Deployment failed - API health check failed"
-            exit 1
-          fi
+          set -e
+          PRIMARY=https://api.magicspell.io/healthz
+          FALLBACK=https://spell-platform.fly.dev/healthz
+
+          for i in {1..60}; do
+            for URL in "$PRIMARY" "$FALLBACK"; do
+              BODY=$(curl -sf "$URL" || true)
+              if [ -n "$BODY" ] && echo "$BODY" | jq -e '.status=="ok"' >/dev/null 2>&1; then
+                echo "✅ Deployment healthy at $URL"
+                exit 0
+              fi
+            done
+            sleep 5
+          done
+          echo "❌ Deployment failed - API health check failed"
+          exit 1
 
       - name: Verify Metrics
         run: |
