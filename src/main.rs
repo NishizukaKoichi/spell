@@ -22,10 +22,7 @@ fn cors() -> Cors {
         .allowed_origin("https://magicspell.io")
         .allowed_origin("https://studio.magicspell.dev")
         .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-        .allowed_headers(vec![
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-        ])
+        .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE])
         .allowed_header("Stripe-Signature")
         .allowed_header("X-CSRF-Token")
         .expose_headers(vec![
@@ -89,11 +86,17 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors())
             .wrap(
                 DefaultHeaders::new()
-                    .add(("Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
+                    .add((
+                        "Strict-Transport-Security",
+                        "max-age=31536000; includeSubDomains",
+                    ))
                     .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
                     .add(("X-Frame-Options", "DENY"))
-                    .add(("Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
-                    .add(("Vary", "Origin"))
+                    .add((
+                        "Permissions-Policy",
+                        "geolocation=(), microphone=(), camera=()",
+                    ))
+                    .add(("Vary", "Origin")),
             )
             .wrap(middleware::rate_limit::RateLimit::new(redis_pool.clone()))
             .app_data(app_data.clone())
