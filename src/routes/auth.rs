@@ -284,9 +284,13 @@ fn env_secure() -> bool {
 }
 
 fn env_domain() -> Option<String> {
-    env::var("SESSION_COOKIE_DOMAIN")
-        .ok()
-        .and_then(|s| if s.trim().is_empty() { None } else { Some(s) })
+    env::var("SESSION_COOKIE_DOMAIN").ok().and_then(|s| {
+        if s.trim().is_empty() {
+            None
+        } else {
+            Some(s)
+        }
+    })
 }
 
 fn build_session_cookie(val: &str) -> Cookie<'_> {
@@ -295,7 +299,9 @@ fn build_session_cookie(val: &str) -> Cookie<'_> {
         .http_only(true)
         .same_site(env_samesite())
         .secure(env_secure())
-        .max_age(actix_web::cookie::time::Duration::seconds(60 * 60 * 24 * 30));
+        .max_age(actix_web::cookie::time::Duration::seconds(
+            60 * 60 * 24 * 30,
+        ));
 
     if let Some(dom) = env_domain() {
         builder = builder.domain(dom);
