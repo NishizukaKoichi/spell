@@ -17,7 +17,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const res = await fetch(`${API_BASE}/v1/keys/${id}`, {
+    const res = await fetch(`${API_BASE}/v1/api-keys/${id}`, {
       method: 'DELETE',
       headers: {
         'Cookie': `session=${sessionCookie.value}`,

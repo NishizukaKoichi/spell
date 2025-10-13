@@ -1031,3 +1031,47 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 ---
 
 檻は整った。仕様書を読み、小さく前進せよ。
+
+## 2025-10-13: GitHub OAuth認証の修正完了
+
+### 問題
+- GitHub OAuthログインが失敗：「redirect_uri is not associated with this application」エラー
+- コールバック後にHTTP 404エラー
+- ログイン成功後にlocalhost:3000へリダイレクト
+
+### 根本原因
+1. GitHub OAuth App設定のコールバックURLが不正確（`/github/`パスが欠落）
+2. Fly.io環境変数 `GITHUB_REDIRECT_URI` と `FRONTEND_URL` が未設定
+
+### 修正内容
+1. **GitHub OAuth App設定更新**（chrome-devtools-mcpで実施）
+   - Application name: "Spell Platform" → "Spell"
+   - Homepage URL: "https://spell-platform.fly.dev" → "https://magicspell.io"
+   - Authorization callback URL: "https://api.magicspell.io/auth/callback" → "https://api.magicspell.io/auth/github/callback"
+
+2. **Fly.io環境変数追加**
+   ```bash
+   flyctl secrets set GITHUB_REDIRECT_URI=https://api.magicspell.io/auth/github/callback
+   flyctl secrets set FRONTEND_URL=https://magicspell.io
+   ```
+
+3. **ドキュメント更新**
+   - `frontend/OAUTH_SETUP.md`: 正しいコールバックURLとトラブルシューティング情報を追加
+
+### 検証結果
+- ✅ GitHubログインが正常に動作
+- ✅ コールバックが正しく処理される（HTTP 404解消）
+- ✅ ログイン後に本番ドメイン（magicspell.io）のダッシュボードへリダイレクト
+- ✅ ユーザー情報とセッションが正常に表示
+
+### 影響範囲
+- `src/routes/auth.rs:24` - GITHUB_REDIRECT_URI環境変数の使用
+- `src/routes/auth.rs:165` - FRONTEND_URL環境変数の使用
+- `frontend/OAUTH_SETUP.md` - セットアップ手順の修正
+
+### 残タスク
+- なし（OAuth認証フロー完全動作確認済み）
+
+### 仕様根拠
+- `docs/spec/Spell-Platform_v1.4.0.md:32.3` - GitHub OAuth環境変数設定
+- `docs/spec/Spell-Platform_v1.4.0.md:32.4-32.5` - 本番ドメイン構成

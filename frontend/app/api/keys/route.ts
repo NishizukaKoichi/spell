@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/keys`, {
+    const res = await fetch(`${API_BASE}/v1/api-keys`, {
       headers: {
         'Cookie': `session=${sessionCookie.value}`,
       },
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const res = await fetch(`${API_BASE}/v1/keys`, {
+    const res = await fetch(`${API_BASE}/v1/api-keys`, {
       method: 'POST',
       headers: {
         'Cookie': `session=${sessionCookie.value}`,
