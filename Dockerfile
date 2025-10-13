@@ -4,7 +4,7 @@
 # Stage 1: chef-prep
 # 依存グラフ抽出（ここは軽量・頻繁に当たる）
 ############################
-FROM rust:1.80-bullseye AS chef-prep
+FROM rust:1.82-bullseye AS chef-prep
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 WORKDIR /app
 RUN cargo install cargo-chef
@@ -17,7 +17,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage 2: chef-build
 # 依存をビルド（ここがキャッシュの本丸）
 ############################
-FROM rust:1.80-bullseye AS chef-build
+FROM rust:1.82-bullseye AS chef-build
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # Stage 3: builder
 # アプリ本体を差分ビルド
 ############################
-FROM rust:1.80-bullseye AS builder
+FROM rust:1.82-bullseye AS builder
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 WORKDIR /app
 # 依存キャッシュを引き継ぎつつ、全ソースをコピー
