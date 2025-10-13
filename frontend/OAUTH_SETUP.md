@@ -9,10 +9,11 @@
 3. Fill in:
    - **Application name**: Spell
    - **Homepage URL**: `https://magicspell.io`
-   - **Authorization callback URL**: `https://api.magicspell.io/auth/callback`
+   - **Authorization callback URL**: `https://api.magicspell.io/auth/github/callback`
 
    ⚠️ **Important**: The callback URL must point to the **backend API** (api.magicspell.io), not the frontend.
    This is because the Rust backend handles OAuth authentication directly, not NextAuth.
+   The path MUST be `/auth/github/callback` (with `/github/` in the middle).
 
 4. Click "Register application"
 5. Save the **Client ID** and generate a **Client Secret**
@@ -45,11 +46,12 @@ flyctl secrets list -a spell-platform
 3. You should be redirected to:
    - `https://api.magicspell.io/auth/github` (backend initiates OAuth)
    - GitHub authorization page
-   - `https://api.magicspell.io/auth/callback` (backend receives callback)
+   - `https://api.magicspell.io/auth/github/callback` (backend receives callback)
    - `https://magicspell.io/dashboard` (frontend after successful auth)
 
 ⚠️ **Common Issues:**
-- If stuck at "You are being redirected to the authorized application", check that the GitHub callback URL is **exactly** `https://api.magicspell.io/auth/callback`
+- If stuck at "You are being redirected to the authorized application", check that the GitHub callback URL is **exactly** `https://api.magicspell.io/auth/github/callback`
+- If you get HTTP 404 at callback, the path is wrong - it MUST include `/github/` in the middle
 - Verify backend logs: `flyctl logs -a spell-platform`
 
 ## Stripe Integration
@@ -154,11 +156,13 @@ OAuth is handled by the Rust backend API.
 
 ## Troubleshooting
 
-### OAuth Redirect Mismatch / Stuck at "You are being redirected"
-- **Most Common**: GitHub callback URL is wrong. It MUST be `https://api.magicspell.io/auth/callback` (backend, not frontend)
-- Check backend logs: `flyctl logs -a spell-platform | grep auth`
-- Verify `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set in Fly.io
-- Test backend endpoint directly: `curl -I https://api.magicspell.io/auth/github` (should return 302 redirect to GitHub)
+### OAuth Redirect Mismatch / Stuck at "You are being redirected" / HTTP 404
+- **Most Common**: GitHub callback URL is wrong. It MUST be `https://api.magicspell.io/auth/github/callback` (with `/github/` in the path)
+- Common mistake: Setting it to `/auth/callback` without the `/github/` part results in HTTP 404
+- Backend route is defined as: `.service(web::resource("/auth/github/callback")...)`
+- Check backend logs: `flyctl logs -a spell-platform`
+- Verify `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `GITHUB_REDIRECT_URI` are set correctly in Fly.io
+- Test backend endpoint: `curl -I https://api.magicspell.io/auth/github` (should return 302 with correct redirect_uri parameter)
 
 ### Stripe Webhook Failures
 - Check webhook signing secret is correct
