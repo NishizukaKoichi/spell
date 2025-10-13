@@ -914,16 +914,41 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 2. [x] 新規API Key発行フォーム（名前入力）
 3. [x] 発行後のモーダル表示（フルキー一度のみ、コピー機能、警告）
 
-#### 5.7 月次請求 📅
+#### 5.7 月次請求 📅 ✅
+
+**完了日時**: 2025-10-13 00:15
+**コミット**: `4113c8b` - "Phase 5.7: Monthly Billing System"
+
+**バックエンド実装**:
+- ✅ `BillingService` 作成 (src/services/billing_service.rs)
+  - `process_monthly_billing()`: 全ユーザーの利用状況集計＆請求処理
+  - `bill_user()`: 個別ユーザーへのStripe Invoice作成
+- ✅ `StripeService` 拡張 (src/services/stripe_service.rs)
+  - `create_monthly_invoice()`: Invoice Item作成＆自動ファイナライズ
+- ✅ Admin routes 作成 (src/routes/admin.rs)
+  - `POST /admin/billing/process-monthly` (X-Admin-Secret認証)
+
+**自動化**:
+- ✅ GitHub Actions ワークフロー (.github/workflows/monthly-billing.yml)
+  - 毎月1日 00:00 UTC 自動実行
+  - 手動トリガー対応 (workflow_dispatch)
+- ✅ シェルスクリプト (scripts/run_monthly_billing.sh)
+  - Admin エンドポイント呼び出し
+  - JSON 整形出力
+
+**ドキュメント**:
+- ✅ 包括的な請求ガイド (docs/BILLING.md)
+  - アーキテクチャ概要
+  - セットアップ手順
+  - テスト手順
+  - モニタリング＆トラブルシューティング
 
 **実装タスク**:
-1. [ ] Stripe Invoice 自動生成スケジューラー
-   - Cron job 設定（毎月末）
-   - `usage_counters` 集計
-   - Invoice 作成
-2. [ ] 請求履歴エンドポイント（オプション）
-   - `GET /v1/billing/invoices`
-3. [ ] Dashboard に請求履歴表示（オプション）
+1. [x] Stripe Invoice 自動生成スケジューラー（GitHub Actions + Cron）
+2. [x] `usage_counters` 集計ロジック
+3. [x] Invoice 作成（自動課金）
+4. [ ] 請求履歴エンドポイント（将来実装予定）
+5. [ ] Dashboard 請求履歴表示（将来実装予定）
 
 ### Phase 5 実装順序
 
