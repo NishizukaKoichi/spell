@@ -9,28 +9,48 @@
 3. Fill in:
    - **Application name**: Spell
    - **Homepage URL**: `https://magicspell.io`
-   - **Authorization callback URL**: `https://magicspell.io/api/auth/callback/github`
+   - **Authorization callback URL**: `https://api.magicspell.io/auth/callback`
+
+   ⚠️ **Important**: The callback URL must point to the **backend API** (api.magicspell.io), not the frontend.
+   This is because the Rust backend handles OAuth authentication directly, not NextAuth.
+
 4. Click "Register application"
 5. Save the **Client ID** and generate a **Client Secret**
+6. Add these secrets to the backend via Fly.io:
+   ```bash
+   flyctl secrets set GITHUB_CLIENT_ID=your_client_id -a spell-platform
+   flyctl secrets set GITHUB_CLIENT_SECRET=your_client_secret -a spell-platform
+   ```
 
-### 2. Add Environment Variables
+### 2. Verify Backend Configuration
+
+Check that the backend has the correct environment variables:
 
 ```bash
-# Add GitHub OAuth credentials
-echo "your_github_client_id" | vercel env add GITHUB_CLIENT_ID production
-echo "your_github_client_secret" | vercel env add GITHUB_CLIENT_SECRET production
+# Check current secrets on Fly.io
+flyctl secrets list -a spell-platform
 
-# Enable NextAuth trust host (required for production)
-echo "1" | vercel env add NEXTAUTH_TRUST_HOST production
-
-# Redeploy
-vercel --prod
+# You should see:
+# - GITHUB_CLIENT_ID
+# - GITHUB_CLIENT_SECRET
+# - SESSION_SECRET (for cookie signing)
+# - DATABASE_URL
+# - REDIS_URL
 ```
 
-### 3. Add Preview Environment Support
+### 3. Test OAuth Flow
 
-For preview deployments, add the wildcard callback URL to GitHub:
-- `https://*.vercel.app/api/auth/callback/github`
+1. Visit https://magicspell.io/login
+2. Click "Sign in with GitHub"
+3. You should be redirected to:
+   - `https://api.magicspell.io/auth/github` (backend initiates OAuth)
+   - GitHub authorization page
+   - `https://api.magicspell.io/auth/callback` (backend receives callback)
+   - `https://magicspell.io/dashboard` (frontend after successful auth)
+
+⚠️ **Common Issues:**
+- If stuck at "You are being redirected to the authorized application", check that the GitHub callback URL is **exactly** `https://api.magicspell.io/auth/callback`
+- Verify backend logs: `flyctl logs -a spell-platform`
 
 ## Stripe Integration
 
@@ -109,19 +129,20 @@ flyctl logs -a spell-platform | grep webhook
 ## Environment Variables Summary
 
 ### Vercel (Frontend)
-- `NEXT_PUBLIC_API_BASE` ✅ (already set)
-- `NEXTAUTH_URL` ✅ (already set)
-- `NEXTAUTH_SECRET` ✅ (already set)
-- `NEXTAUTH_TRUST_HOST` ⏳ (add when enabling OAuth)
-- `GITHUB_CLIENT_ID` ⏳ (add when ready)
-- `GITHUB_CLIENT_SECRET` ⏳ (add when ready)
-- `STRIPE_PUBLISHABLE_KEY` ⏳ (add when ready)
+- `NEXT_PUBLIC_API_BASE` ✅ (set to `https://api.magicspell.io`)
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` ⏳ (add when ready)
 
-### Fly.io (Backend)
+⚠️ **Note**: `NEXTAUTH_*` variables are NOT needed because this project doesn't use NextAuth.
+OAuth is handled by the Rust backend API.
+
+### Fly.io (Backend) - spell-platform
 - `DATABASE_URL` ✅ (already set)
 - `REDIS_URL` ✅ (already set)
+- `SESSION_SECRET` ✅ (already set)
+- `GITHUB_CLIENT_ID` ⏳ (add for OAuth)
+- `GITHUB_CLIENT_SECRET` ⏳ (add for OAuth)
 - `STRIPE_SECRET_KEY` ⏳ (add when ready)
-- `WEBHOOK_SIGNING_SECRET` ⏳ (add when ready)
+- `STRIPE_WEBHOOK_SECRET` ⏳ (add when ready)
 
 ## Security Notes
 
@@ -133,10 +154,11 @@ flyctl logs -a spell-platform | grep webhook
 
 ## Troubleshooting
 
-### OAuth Redirect Mismatch
-- Verify callback URL exactly matches in GitHub settings
-- Check `NEXTAUTH_URL` is set correctly
-- Ensure `NEXTAUTH_TRUST_HOST=1` is set
+### OAuth Redirect Mismatch / Stuck at "You are being redirected"
+- **Most Common**: GitHub callback URL is wrong. It MUST be `https://api.magicspell.io/auth/callback` (backend, not frontend)
+- Check backend logs: `flyctl logs -a spell-platform | grep auth`
+- Verify `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set in Fly.io
+- Test backend endpoint directly: `curl -I https://api.magicspell.io/auth/github` (should return 302 redirect to GitHub)
 
 ### Stripe Webhook Failures
 - Check webhook signing secret is correct
