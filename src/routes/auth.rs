@@ -243,7 +243,8 @@ async fn logout(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
     }
 
     // Clear cookie
-    let cookie = "spell_session=; Path=/; Domain=magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
+    let cookie =
+        "spell_session=; Path=/; Domain=magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
 
     HttpResponse::Ok()
         .append_header(("Set-Cookie", cookie))
