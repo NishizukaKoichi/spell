@@ -51,8 +51,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 ############################
 FROM debian:bullseye-slim AS runtime
 ENV RUST_LOG=info
-# SQLx を使うならオフラインビルド運用前提（.sqlx はリポジトリに含める）
-ENV SQLX_OFFLINE=true
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates tzdata wget libssl1.1 && \
