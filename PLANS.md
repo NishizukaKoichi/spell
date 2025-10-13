@@ -1136,3 +1136,86 @@ README等の指示に従い `GITHUB_REDIRECT_URI=/auth/callback` を設定する
 ### 仕様根拠
 - **§32.3「Environment Variables / Secrets (Caster UI)」** (docs/spec/Spell-Platform_v1.4.0.md:1327-1328)
   - OAuth Redirect URI を固定し、Caster UI から API へ正しく戻すことを要求
+
+---
+
+## 2025-10-13 21:56: OAuth Cookie設定の最終修正 - 認証完全動作 ✅
+
+### 問題
+- コールバックURL修正後も `spell_session` クッキーが保存されない
+- `/auth/me` が401を返し続ける
+- ダッシュボードがログインページにリダイレクト
+
+### 根本原因の発見プロセス
+
+**試行1**: Leading dotの削除
+- `Domain=.magicspell.io` → `Domain=magicspell.io`
+- 理由: CookieStore APIが leading dot を拒否
+- 結果: **失敗** - クッキー依然として保存されず
+
+**試行2**: SameSite属性の変更
+- `Domain=magicspell.io` を削除（デフォルトでリクエスト元ドメインに設定）
+- `SameSite=Lax` → `SameSite=None`
+- 理由: クロスドメイン OAuth フロー（`api.magicspell.io` ↔ `magicspell.io`）でクッキー送信を許可
+- 結果: **成功** ✅
+
+### 最終的な修正内容
+
+**src/routes/auth.rs:168, 247**
+```rust
+// Before
+Domain=.magicspell.io; SameSite=Lax
+
+// After
+(Domain属性なし); SameSite=None
+```
+
+**完全なクッキー設定**:
+```
+spell_session={token}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=2592000
+```
+
+### 技術的説明
+
+**なぜDomain属性を削除したか**:
+- `api.magicspell.io` から `Domain=magicspell.io` を設定すると、ブラウザがクロスドメインリダイレクト時にクッキーをブロック
+- Domain属性を省略すると、クッキーはリクエスト元（`api.magicspell.io`）に保存される
+- フロントエンド（`magicspell.io`）からのCORS `credentials: 'include'` リクエストでクッキーが送信される
+
+**なぜSameSite=Noneが必要か**:
+- `SameSite=Lax`: 同一サイト内のナビゲーションでのみクッキー送信
+- `SameSite=None`: クロスサイトリクエストでもクッキー送信（Secure必須）
+- OAuth フローは `magicspell.io` ↔ `api.magicspell.io` のクロスドメイン通信のため必須
+
+### 検証結果
+
+**chrome-devtools-mcpによる確認**:
+1. ✅ GitHub OAuth ログイン成功
+2. ✅ `/auth/github/callback` が正常に処理
+3. ✅ `https://magicspell.io/dashboard` へリダイレクト成功
+4. ✅ `/auth/me` API が `200 OK` を返す
+5. ✅ ユーザー情報取得成功: `authenticated: true`, `user: NishizukaKoichi`
+6. ✅ ダッシュボードページが正常に表示
+7. ✅ ナビゲーション動作（Dashboard, API Keys, Billing）
+8. ✅ Usage & Billing 情報表示（$0.00 / $50.00）
+
+**重要**: `spell_session` クッキーは **HttpOnly属性** のため、JavaScript の `document.cookie` や `cookieStore.getAll()` には表示されないが、HTTPリクエストでは正しく送信されている。
+
+### 影響範囲
+- `src/routes/auth.rs:168` - ログイン時のクッキー設定
+- `src/routes/auth.rs:247` - ログアウト時のクッキークリア
+- Commits: `1f622c6`, `42196a9`
+- Deployments: v37 (leading dot削除), v38 (SameSite=None)
+
+### デプロイ履歴
+- v36: `GITHUB_REDIRECT_URI` 修正
+- v37: Cookie `Domain=.magicspell.io` → `Domain=magicspell.io`
+- v38: Cookie Domain削除、`SameSite=None` 設定 ✅ **成功**
+
+### 残タスク
+- なし（OAuth認証フロー完全動作確認済み）
+
+### 仕様根拠
+- **§32.3「Environment Variables / Secrets (Caster UI)」** - OAuth設定要件
+- RFC 6265 (HTTP Cookies) - SameSite属性仕様
+- MDN Web Docs - SameSite cookies explained
