@@ -1075,3 +1075,64 @@ Spell Platform は仕様書準拠の「堅牢化済みの完成形」に到達�
 ### 仕様根拠
 - `docs/spec/Spell-Platform_v1.4.0.md:32.3` - GitHub OAuth環境変数設定
 - `docs/spec/Spell-Platform_v1.4.0.md:32.4-32.5` - 本番ドメイン構成
+
+---
+
+## 2025-10-13 20:40: GitHub OAuth 404エラー - READMEとコールバックURL不一致
+
+### 問題
+- GitHub OAuth認証が404で失敗
+- ユーザーが再度ログインできない状態
+- GitHub OAuth Appレート制限により、認可ボタンが無効化
+
+### 根本原因
+**コールバックURLパスの不一致**:
+- README.md の指示: `/auth/callback` （誤）
+- 実装の受付パス: `/auth/github/callback` （正）
+  - `src/routes/auth.rs:15-16` で定義
+  - `.service(web::resource("/auth/github/callback")...)`
+
+README等の指示に従い `GITHUB_REDIRECT_URI=/auth/callback` を設定すると、実装が受け付ける `/auth/github/callback` と乖離して認可完了後に404となる。
+
+### 修正内容
+
+1. **Fly.io 環境変数を正しいパスに更新**
+   ```bash
+   flyctl secrets set GITHUB_REDIRECT_URI="https://api.magicspell.io/auth/github/callback" --app spell-platform
+   ```
+   - デプロイ: v36 (自動再起動)
+
+2. **README.md のコールバックURL修正**
+   - Line 116: `http://localhost:8080/auth/callback` → `http://localhost:8080/auth/github/callback`
+   - Line 140: `https://spell-platform.fly.dev/auth/callback` → `https://api.magicspell.io/auth/github/callback`
+
+3. **frontend/OAUTH_SETUP.md の確認**
+   - ✅ すでに正しいパス `/auth/github/callback` が記載済み
+   - 修正不要
+
+4. **GitHub OAuth App 設定更新（要手動確認）**
+   - Authorization callback URL: `https://api.magicspell.io/auth/github/callback` に設定
+   - ブラウザで https://github.com/settings/developers を開き確認
+
+### 影響範囲
+- `src/routes/auth.rs:15-24` - コールバックURL定義
+- `README.md:110-141` - 環境変数設定手順
+- `frontend/OAUTH_SETUP.md:9-23` - すでに正しい（修正不要）
+- `docs/spec/Spell-Platform_v1.4.0.md:1327-1328` - §32.3 OAuth環境変数仕様
+
+### 残タスク & リスク
+1. ✅ Fly.io `GITHUB_REDIRECT_URI` 修正完了
+2. ✅ README.md 修正完了
+3. ⏳ GitHub OAuth App 設定を手動で `/auth/github/callback` に変更（要確認）
+4. ⚠️ **ローカル開発時の課題**:
+   - `Domain=.magicspell.io` のクッキーが localhost で無効
+   - 必要なら `COOKIE_DOMAIN` 環境変数を追加して条件分岐を検討
+
+### 失敗テストと修正要旨
+**再現**: GitHub OAuthリダイレクト後に `/auth/callback` へ戻され404で停止（READMEの指示どおりに `GITHUB_REDIRECT_URI` を設定すると発生）。
+
+**修正**: 実際のバックエンドは `src/routes/auth.rs:15-16` の通り `/auth/github/callback` だけを受け付けるため、環境変数とGitHub App設定を `/auth/github/callback` に合わせる必要がある。
+
+### 仕様根拠
+- **§32.3「Environment Variables / Secrets (Caster UI)」** (docs/spec/Spell-Platform_v1.4.0.md:1327-1328)
+  - OAuth Redirect URI を固定し、Caster UI から API へ正しく戻すことを要求

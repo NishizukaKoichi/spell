@@ -113,7 +113,7 @@ export DATABASE_URL=postgresql://...
 export REDIS_URL=redis://...
 export GITHUB_CLIENT_ID=xxx
 export GITHUB_CLIENT_SECRET=xxx
-export GITHUB_REDIRECT_URI=http://localhost:8080/auth/callback
+export GITHUB_REDIRECT_URI=http://localhost:8080/auth/github/callback
 
 cargo run
 ```
@@ -137,7 +137,7 @@ flyctl secrets set \
   REDIS_URL=redis://... \
   GITHUB_CLIENT_ID=xxx \
   GITHUB_CLIENT_SECRET=xxx \
-  GITHUB_REDIRECT_URI=https://spell-platform.fly.dev/auth/callback \
+  GITHUB_REDIRECT_URI=https://api.magicspell.io/auth/github/callback \
   STRIPE_SECRET_KEY=sk_live_xxx \
   STRIPE_WEBHOOK_SECRET=whsec_xxx \
   COST_PER_CAST_CENTS=1
