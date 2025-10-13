@@ -49,11 +49,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # Stage 4: runtime
 # 実行のみ（最小・ビルドツールなし）
 ############################
-FROM debian:bullseye-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 ENV RUST_LOG=info
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates tzdata wget libssl1.1 && \
+    ca-certificates tzdata wget libssl3 && \
     rm -rf /var/lib/apt/lists/*
 # バイナリのみコピー
 COPY --from=builder /app/spell-api /app/spell-api
