@@ -9,7 +9,7 @@ export async function DELETE(
 ) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const sessionCookie = cookieStore.get('spell_session');
 
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,7 +20,7 @@ export async function DELETE(
     const res = await fetch(`${API_BASE}/v1/api-keys/${id}`, {
       method: 'DELETE',
       headers: {
-        'Cookie': `session=${sessionCookie.value}`,
+        'Cookie': `spell_session=${sessionCookie.value}`,
       },
     });
 

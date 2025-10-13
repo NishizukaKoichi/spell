@@ -6,7 +6,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io'
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const sessionCookie = cookieStore.get('spell_session');
 
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +14,7 @@ export async function GET() {
 
     const res = await fetch(`${API_BASE}/v1/api-keys`, {
       headers: {
-        'Cookie': `session=${sessionCookie.value}`,
+        'Cookie': `spell_session=${sessionCookie.value}`,
       },
       cache: 'no-store',
     });
@@ -34,7 +34,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const sessionCookie = cookieStore.get('spell_session');
 
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${API_BASE}/v1/api-keys`, {
       method: 'POST',
       headers: {
-        'Cookie': `session=${sessionCookie.value}`,
+        'Cookie': `spell_session=${sessionCookie.value}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
