@@ -1,7 +1,5 @@
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io';
-
 export interface ApiKey {
   id: string;
   name: string;
@@ -27,7 +25,7 @@ const fetcher = (url: string) =>
 
 export function useApiKeys() {
   const { data, error, isLoading, mutate } = useSWR<ApiKey[]>(
-    `${API_URL}/api-keys`,
+    `/api/keys`,
     fetcher,
     {
       revalidateOnFocus: true,
@@ -35,7 +33,7 @@ export function useApiKeys() {
   );
 
   const createApiKey = async (name: string): Promise<CreateApiKeyResponse> => {
-    const response = await fetch(`${API_URL}/api-keys`, {
+    const response = await fetch(`/api/keys`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,7 +53,7 @@ export function useApiKeys() {
   };
 
   const deleteApiKey = async (id: string) => {
-    const response = await fetch(`${API_URL}/api-keys/${id}`, {
+    const response = await fetch(`/api/keys/${id}`, {
       method: 'DELETE',
       credentials: 'include',
     });
