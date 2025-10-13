@@ -7,7 +7,8 @@ mod services;
 mod utils;
 mod wasm;
 
-use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_cors::Cors;
+use actix_web::{http::header, middleware::DefaultHeaders, web, App, HttpResponse, HttpServer};
 use dotenvy::dotenv;
 use parking_lot::Mutex;
 use std::env;
@@ -15,6 +16,26 @@ use std::sync::Arc;
 
 use routes::metrics::Metrics;
 use services::stripe_service::StripeService;
+
+fn cors() -> Cors {
+    Cors::default()
+        .allowed_origin("https://magicspell.io")
+        .allowed_origin("https://studio.magicspell.dev")
+        .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+        .allowed_headers(vec![
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+        ])
+        .allowed_header("Stripe-Signature")
+        .allowed_header("X-CSRF-Token")
+        .expose_headers(vec![
+            "RateLimit-Limit",
+            "RateLimit-Remaining",
+            "RateLimit-Reset",
+        ])
+        .supports_credentials()
+        .max_age(3600)
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -65,6 +86,15 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(cors())
+            .wrap(
+                DefaultHeaders::new()
+                    .add(("Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
+                    .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
+                    .add(("X-Frame-Options", "DENY"))
+                    .add(("Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
+                    .add(("Vary", "Origin"))
+            )
             .wrap(middleware::rate_limit::RateLimit::new(redis_pool.clone()))
             .app_data(app_data.clone())
             .app_data(metrics_data.clone())
