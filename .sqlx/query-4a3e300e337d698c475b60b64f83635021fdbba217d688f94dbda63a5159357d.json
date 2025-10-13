@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT window_start, window_end, calls, cost_cents\n        FROM usage_counters\n        WHERE user_id = $1\n        ORDER BY window_start DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "window_start",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "window_end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "calls",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "cost_cents",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4a3e300e337d698c475b60b64f83635021fdbba217d688f94dbda63a5159357d"
+}
