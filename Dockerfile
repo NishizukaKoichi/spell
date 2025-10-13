@@ -25,11 +25,7 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/target/release/spell-api /app/spell-api
 
-# Copy WASM modules
-COPY modules /opt/spell/modules
-
 # Set environment
-ENV WASM_MODULE_PATH=/opt/spell/modules
 ENV RUST_LOG=info
 
 EXPOSE 8080
