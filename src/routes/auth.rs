@@ -165,7 +165,7 @@ async fn github_callback(
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     let cookie = format!(
-        "spell_session={}; Path=/; Domain=.magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age={}",
+        "spell_session={}; Path=/; Domain=magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age={}",
         session_token,
         60 * 60 * 24 * 30 // 30 days in seconds
     );
@@ -244,7 +244,7 @@ async fn logout(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
 
     // Clear cookie
     let cookie =
-        "spell_session=; Path=/; Domain=.magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
+        "spell_session=; Path=/; Domain=magicspell.io; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
 
     HttpResponse::Ok()
         .append_header(("Set-Cookie", cookie))
