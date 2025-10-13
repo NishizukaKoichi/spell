@@ -1218,4 +1218,88 @@ spell_session={token}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=2592000
 ### 仕様根拠
 - **§32.3「Environment Variables / Secrets (Caster UI)」** - OAuth設定要件
 - RFC 6265 (HTTP Cookies) - SameSite属性仕様
+
+---
+
+## 2025-10-13 22:30: Cookie設定を.append_header()に変更 - 明示的ヘッダー送信 ✅
+
+### 背景
+前回の修正（v38: SameSite=None）後、さらに確実な Cookie 配信のため、`.cookie()` メソッドから `.append_header()` への変更を実施。
+
+### 修正内容
+
+**src/routes/auth.rs:4, 172-174, 247**
+```rust
+// 追加インポート
+use actix_web::http::header;
+
+// OAuth callback - Cookie設定
+HttpResponse::Found()
+    .append_header((header::LOCATION, format!("{frontend_url}/dashboard")))
+    .append_header((header::SET_COOKIE, cookie.to_string()))  // ← 変更
+    .finish()
+
+// Logout - Cookie削除
+HttpResponse::Ok()
+    .append_header((header::SET_COOKIE, cookie.to_string()))  // ← 変更
+    .json(serde_json::json!({"status": "logged_out"}))
+```
+
+**変更理由**:
+- `.cookie()` メソッドは Actix-web の抽象化レイヤーを経由
+- `.append_header((header::SET_COOKIE, ...))` は HTTP ヘッダーを直接設定
+- クロスオリジンリダイレクトでの Cookie 配信をより確実にする
+
+### 検証結果
+
+**Chrome DevTools による確認**:
+1. ✅ GitHub OAuth ログイン成功
+2. ✅ ダッシュボード表示成功
+3. ✅ `/auth/me` が `200 OK` を返す
+4. ✅ 認証済みユーザー情報取得成功:
+   ```json
+   {
+     "authenticated": true,
+     "user": {
+       "id": "781cc64e-0b8d-46d9-b924-771a4dc10304",
+       "github_login": "NishizukaKoichi",
+       "github_name": "KOICHI NISHIZUKA"
+     }
+   }
+   ```
+5. ✅ `spell_session` クッキーが HTTPOnly として正しく動作（リクエストに自動付与）
+6. ✅ CORS 設定正常: `access-control-allow-credentials: true`
+
+### 影響範囲
+- `src/routes/auth.rs:4` - header インポート追加
+- `src/routes/auth.rs:172-174` - OAuth callback の Cookie 設定
+- `src/routes/auth.rs:247` - Logout の Cookie 削除
+- Commit: `07fc06d` - "fix: Use explicit Set-Cookie header for session cookies"
+- Deployment: v39
+
+### 技術的説明
+
+**HttpOnly Cookie と JavaScript**:
+- `spell_session` は `HttpOnly` 属性により JavaScript からアクセス不可
+- `cookieStore.getAll()` や `document.cookie` では見えない
+- しかし、ブラウザは自動的に同一オリジン/クロスオリジン（`credentials: 'include'`）リクエストに付与
+
+**Cookie 配信の確実性**:
+- `.cookie()`: Actix-web が内部で `Set-Cookie` ヘッダーを構築
+- `.append_header()`: HTTP ヘッダーを明示的に設定
+- クロスドメインリダイレクト（`api.magicspell.io` → `magicspell.io`）では明示的設定がより確実
+
+### 環境変数設定（Fly.io）
+- `SESSION_COOKIE_DOMAIN`: 設定済み（環境に応じて調整）
+- `SESSION_COOKIE_SAMESITE`: `Lax` または `None`
+- `SESSION_COOKIE_SECURE`: `true`（本番）
+- `FRONTEND_URL`: `https://magicspell.io`
+
+### 残タスク
+- なし（OAuth認証フロー完全動作確認済み）
+
+### 仕様根拠
+- **§14「Authentication」** (docs/spec/Spell-Platform_v1.4.0.md) - Session Cookie 認証
+- **§20「CORS & CSRF」** - クロスオリジンリクエストの Cookie 送信要件
+- RFC 6265 (HTTP Cookies) - Set-Cookie ヘッダー仕様
 - MDN Web Docs - SameSite cookies explained
