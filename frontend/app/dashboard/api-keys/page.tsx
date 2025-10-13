@@ -70,7 +70,7 @@ export default function ApiKeysPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">API Keys</h1>
         <p className="text-muted-foreground mt-2">
-          Manage your API keys for accessing the Spell Platform API
+          Manage your API keys for accessing the Spell API
         </p>
       </div>
 

@@ -56,7 +56,7 @@ export default function BillingPage() {
         {!clientSecret ? (
           <div>
             <p className="text-sm text-muted-foreground mb-4">
-              Add a payment method to start using the Spell Platform API. You
+              Add a payment method to start using the Spell API. You
               will be charged based on your usage.
             </p>
             <button

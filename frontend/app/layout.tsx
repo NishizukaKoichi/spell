@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spell Platform - Caster Portal",
+  title: "Spell - Caster Portal",
   description: "Cast spells with WASM-powered APIs",
 };
 

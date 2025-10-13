@@ -1,11 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "https://www.magicspell.io/:path*",
-      "destination": "https://magicspell.io/:path*",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -13,10 +6,6 @@
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
         }
       ]
     }

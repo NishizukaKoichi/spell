@@ -3,14 +3,14 @@
 export default function LoginPage() {
   const handleGitHubLogin = () => {
     // Redirect to backend GitHub OAuth endpoint
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'https://spell-platform.fly.dev'}/auth/github`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io'}/auth/github`;
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md space-y-8 p-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Spell Platform</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Spell</h1>
           <p className="mt-2 text-muted-foreground">
             Cast spells with WASM-powered APIs
           </p>

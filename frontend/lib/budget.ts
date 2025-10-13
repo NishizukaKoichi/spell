@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://spell-platform.fly.dev';
+const API_URL = process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io';
 
 interface Budget {
   user_id: string;

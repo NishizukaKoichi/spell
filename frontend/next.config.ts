@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Security headers for all routes
       {
         source: '/(.*)',
         headers: [
@@ -43,6 +44,25 @@ const nextConfig: NextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'geolocation=(), microphone=()',
+          },
+        ],
+      },
+      // Long-term cache for static assets
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/favicon.ico',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400',
           },
         ],
       },
