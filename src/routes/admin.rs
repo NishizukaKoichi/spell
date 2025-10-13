@@ -35,9 +35,10 @@ async fn process_monthly_billing(
         }
     }
 
-    let stripe = state.stripe.as_ref().ok_or_else(|| {
-        actix_web::error::ErrorServiceUnavailable("Billing not configured")
-    })?;
+    let stripe = state
+        .stripe
+        .as_ref()
+        .ok_or_else(|| actix_web::error::ErrorServiceUnavailable("Billing not configured"))?;
 
     BillingService::process_monthly_billing(stripe, &state.db)
         .await

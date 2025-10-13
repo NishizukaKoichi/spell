@@ -24,12 +24,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     .service(
         web::resource("/api-keys")
             .route(web::post().to(create_api_key_cookie))
-            .route(web::get().to(list_api_keys_cookie))
+            .route(web::get().to(list_api_keys_cookie)),
     )
-    .service(
-        web::resource("/api-keys/{id}")
-            .route(web::delete().to(delete_api_key_cookie))
-    );
+    .service(web::resource("/api-keys/{id}").route(web::delete().to(delete_api_key_cookie)));
 }
 
 async fn create_api_key(
@@ -199,7 +196,11 @@ async fn create_api_key_cookie(
         actix_web::error::ErrorInternalServerError(format!("Failed to create API key: {e}"))
     })?;
 
-    log::info!("API key {api_key_id} created for user {} ({})", user.github_login, user.id);
+    log::info!(
+        "API key {api_key_id} created for user {} ({})",
+        user.github_login,
+        user.id
+    );
 
     Ok(HttpResponse::Ok().json(CreateApiKeyResponse {
         id: api_key_id,
@@ -273,7 +274,11 @@ async fn delete_api_key_cookie(
         return Err(actix_web::error::ErrorNotFound("API key not found"));
     }
 
-    log::info!("API key {key_id} deleted by user {} ({})", user.github_login, user.id);
+    log::info!(
+        "API key {key_id} deleted by user {} ({})",
+        user.github_login,
+        user.id
+    );
 
     Ok(HttpResponse::NoContent().finish())
 }

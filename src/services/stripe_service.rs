@@ -274,7 +274,11 @@ impl StripeService {
         .execute(db)
         .await?;
 
-        log::info!("Created Stripe customer {} for user {}", customer_id, user.github_login);
+        log::info!(
+            "Created Stripe customer {} for user {}",
+            customer_id,
+            user.github_login
+        );
 
         Ok(customer_id)
     }
@@ -309,12 +313,8 @@ impl StripeService {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
 
-        let payment_method = PaymentMethod::retrieve(
-            client,
-            &payment_method_id.parse()?,
-            &[],
-        )
-        .await?;
+        let payment_method =
+            PaymentMethod::retrieve(client, &payment_method_id.parse()?, &[]).await?;
 
         // Attach payment method to customer
         PaymentMethod::attach(
@@ -333,12 +333,7 @@ impl StripeService {
             ..Default::default()
         });
 
-        Customer::update(
-            client,
-            &customer_id.parse()?,
-            update_params,
-        )
-        .await?;
+        Customer::update(client, &customer_id.parse()?, update_params).await?;
 
         Ok(())
     }
@@ -353,12 +348,8 @@ impl StripeService {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
 
-        let payment_method = PaymentMethod::retrieve(
-            client,
-            &payment_method_id.parse()?,
-            &[],
-        )
-        .await?;
+        let payment_method =
+            PaymentMethod::retrieve(client, &payment_method_id.parse()?, &[]).await?;
 
         Ok(payment_method)
     }

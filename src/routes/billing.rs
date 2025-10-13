@@ -15,19 +15,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .wrap(auth)
             .route("/checkout", web::post().to(create_checkout_session)),
     )
-    .service(
-        web::resource("/setup-intent")
-            .route(web::post().to(create_setup_intent))
-    )
+    .service(web::resource("/setup-intent").route(web::post().to(create_setup_intent)))
     .service(
         web::resource("/payment-method")
             .route(web::post().to(attach_payment_method))
-            .route(web::get().to(get_payment_method))
+            .route(web::get().to(get_payment_method)),
     )
-    .service(
-        web::resource("/usage")
-            .route(web::get().to(get_usage_cookie))
-    )
+    .service(web::resource("/usage").route(web::get().to(get_usage_cookie)))
     .service(web::resource("/webhooks/stripe").route(web::post().to(stripe_webhook)));
 }
 
