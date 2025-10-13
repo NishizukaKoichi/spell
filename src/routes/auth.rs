@@ -1,5 +1,6 @@
 use crate::models::{GitHubAccessTokenResponse, GitHubUser, User};
 use crate::AppState;
+use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
@@ -164,15 +165,11 @@ async fn github_callback(
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
-    let cookie = format!(
-        "spell_session={}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age={}",
-        session_token,
-        60 * 60 * 24 * 30 // 30 days in seconds
-    );
+    let cookie = build_session_cookie(&session_token);
 
     HttpResponse::Found()
         .append_header(("Location", format!("{frontend_url}/dashboard")))
-        .append_header(("Set-Cookie", cookie))
+        .cookie(cookie)
         .finish()
 }
 
@@ -243,11 +240,10 @@ async fn logout(req: HttpRequest, state: web::Data<AppState>) -> HttpResponse {
     }
 
     // Clear cookie
-    let cookie =
-        "spell_session=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0";
+    let cookie = build_session_cookie_deletion();
 
     HttpResponse::Ok()
-        .append_header(("Set-Cookie", cookie))
+        .cookie(cookie)
         .json(serde_json::json!({
             "status": "logged_out"
         }))
@@ -267,4 +263,57 @@ fn generate_session_token() -> String {
         })
         .collect();
     token
+}
+
+fn env_samesite() -> SameSite {
+    match env::var("SESSION_COOKIE_SAMESITE")
+        .unwrap_or_else(|_| "Lax".to_string())
+        .as_str()
+    {
+        "None" => SameSite::None,
+        "Strict" => SameSite::Strict,
+        _ => SameSite::Lax,
+    }
+}
+
+fn env_secure() -> bool {
+    env::var("SESSION_COOKIE_SECURE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(true)
+}
+
+fn env_domain() -> Option<String> {
+    env::var("SESSION_COOKIE_DOMAIN")
+        .ok()
+        .and_then(|s| if s.trim().is_empty() { None } else { Some(s) })
+}
+
+fn build_session_cookie(val: &str) -> Cookie<'_> {
+    let mut builder = Cookie::build("spell_session", val)
+        .path("/")
+        .http_only(true)
+        .same_site(env_samesite())
+        .secure(env_secure())
+        .max_age(actix_web::cookie::time::Duration::seconds(60 * 60 * 24 * 30));
+
+    if let Some(dom) = env_domain() {
+        builder = builder.domain(dom);
+    }
+
+    builder.finish()
+}
+
+fn build_session_cookie_deletion() -> Cookie<'static> {
+    let mut builder = Cookie::build("spell_session", "")
+        .path("/")
+        .http_only(true)
+        .same_site(env_samesite())
+        .secure(env_secure())
+        .max_age(actix_web::cookie::time::Duration::seconds(0));
+
+    if let Some(dom) = env_domain() {
+        builder = builder.domain(dom);
+    }
+
+    builder.finish()
 }
