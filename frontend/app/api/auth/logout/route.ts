@@ -12,7 +12,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/auth/logout`, {
+    const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,

@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/budgets`, {
+    const res = await fetch(`${API_BASE}/budget`, {
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,
       },
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const res = await fetch(`${API_BASE}/v1/budgets`, {
+    const res = await fetch(`${API_BASE}/budget`, {
       method: 'POST',
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,
@@ -90,7 +90,7 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
 
-    const res = await fetch(`${API_BASE}/v1/budgets`, {
+    const res = await fetch(`${API_BASE}/budget`, {
       method: 'PUT',
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,
@@ -128,7 +128,7 @@ export async function DELETE() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/budgets`, {
+    const res = await fetch(`${API_BASE}/budget`, {
       method: 'DELETE',
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,

@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/auth/me`, {
+    const res = await fetch(`${API_BASE}/auth/me`, {
       headers: {
         'Cookie': `spell_session=${sessionCookie.value}`,
       },
