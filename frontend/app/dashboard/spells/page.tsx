@@ -54,16 +54,9 @@ export default function SpellsPage() {
               by {s.author} (v{s.version})
             </p>
             <p className="mt-2 text-sm">{s.description}</p>
-            <button
-              className="mt-3 bg-blue-600 text-white px-3 py-1 rounded"
-              onClick={() => {
-                const u = new URL("/dashboard/cast", window.location.origin);
-                u.searchParams.set("spellId", s.id);
-                window.location.href = u.toString();
-              }}
-            >
-              実行
-            </button>
+            <div className="mt-3 text-xs text-muted-foreground">
+              Use via API: POST /v1/spells/{s.id}/cast
+            </div>
           </div>
         ))}
       </div>

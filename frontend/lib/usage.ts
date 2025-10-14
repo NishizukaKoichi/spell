@@ -1,7 +1,5 @@
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE || '';
-
 interface Usage {
   user_id: string;
   period: string;
@@ -33,7 +31,7 @@ const fetcher = (url: string) =>
 
 export function useUsage() {
   const { data, error, isLoading, mutate } = useSWR<Usage | null>(
-    `${API_URL}/usage`,
+    '/api/usage',
     fetcher,
     {
       refreshInterval: 30000, // Refresh every 30 seconds
@@ -52,7 +50,7 @@ export function useUsage() {
 
 export function usePaymentMethod() {
   const { data, error, isLoading, mutate } = useSWR<PaymentMethod | null>(
-    `${API_URL}/payment-method`,
+    '/api/payment-method',
     fetcher,
     {
       revalidateOnFocus: false,

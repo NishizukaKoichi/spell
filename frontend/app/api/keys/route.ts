@@ -19,8 +19,16 @@ export async function GET() {
       cache: 'no-store',
     });
 
+    if (res.status === 401 || res.status === 403) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: res.status });
+    }
+
     if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to fetch keys' }, { status: res.status });
+      const body = await res.text();
+      return NextResponse.json(
+        { error: 'upstream_error', detail: body.slice(0, 500) },
+        { status: 502 }
+      );
     }
 
     const data = await res.json();
@@ -51,8 +59,16 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    if (res.status === 401 || res.status === 403) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: res.status });
+    }
+
     if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to create key' }, { status: res.status });
+      const body = await res.text();
+      return NextResponse.json(
+        { error: 'upstream_error', detail: body.slice(0, 500) },
+        { status: 502 }
+      );
     }
 
     const data = await res.json();

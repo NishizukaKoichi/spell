@@ -87,6 +87,12 @@ export default function BudgetManager() {
             and ${MAX_BUDGET}.
           </p>
 
+          {currentLimit < MIN_BUDGET && (
+            <div className="mb-4 p-3 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-sm">
+              ⚠️ Warning: Your monthly spending limit is below the recommended minimum of ${MIN_BUDGET}. Consider increasing your limit to avoid service interruptions.
+            </div>
+          )}
+
           {success && (
             <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm">
               Spending limit updated successfully!

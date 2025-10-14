@@ -1,7 +1,5 @@
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE || '';
-
 export interface User {
   id: string;
   github_login: string;
@@ -29,7 +27,7 @@ const fetcher = async (url: string): Promise<AuthResponse> => {
 
 export function useAuth() {
   const { data, error, isLoading, mutate } = useSWR<AuthResponse>(
-    `${API_URL}/auth/me`,
+    '/api/auth/me',
     fetcher,
     {
       revalidateOnFocus: false,
@@ -39,7 +37,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });

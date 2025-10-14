@@ -1,7 +1,5 @@
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE || '';
-
 interface Budget {
   user_id: string;
   period: string;
@@ -27,7 +25,7 @@ const fetcher = (url: string) =>
 
 export function useBudget() {
   const { data, error, isLoading, mutate } = useSWR<Budget | null>(
-    `${API_URL}/budget`,
+    '/api/budgets',
     fetcher,
     {
       revalidateOnFocus: false,
@@ -38,7 +36,7 @@ export function useBudget() {
     hard_limit_cents: number | null,
     soft_limit_cents: number | null
   ) => {
-    const response = await fetch(`${API_URL}/budget`, {
+    const response = await fetch('/api/budgets', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
