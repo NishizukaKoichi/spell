@@ -1303,3 +1303,66 @@ HttpResponse::Ok()
 - **§20「CORS & CSRF」** - クロスオリジンリクエストの Cookie 送信要件
 - RFC 6265 (HTTP Cookies) - Set-Cookie ヘッダー仕様
 - MDN Web Docs - SameSite cookies explained
+
+---
+
+## 📅 2025-10-13 - OAuth Cookie 認証の根本原因修正
+
+### 問題
+`.append_header()` への変更後も、ブラウザに `spell_session` Cookie が保存されず、OAuth 認証後に `/auth/me` が 401 Unauthorized を返す問題が継続。
+
+### 調査
+1. **chrome-devtools-mcp による検証**:
+   - `https://api.magicspell.io/auth/github` → GitHub 認証 → ダッシュボードへリダイレクト
+   - ブラウザの Cookie ストアを確認: `spell_session` Cookie が存在しない
+   - `/auth/me` リクエストに Cookie ヘッダーが含まれていない
+
+2. **環境変数の確認**:
+   ```bash
+   flyctl secrets list --app spell-platform
+   ```
+   - `SESSION_COOKIE_DOMAIN` が設定されていることを発見（digest: 6f84c6166dfadb89）
+
+### 根本原因
+**Fly.io の Secrets に `SESSION_COOKIE_DOMAIN` 環境変数が設定されていた**
+
+- `build_session_cookie()` 関数（src/routes/auth.rs:296-311）は `env_domain()` を呼び出し、環境変数があれば Cookie の Domain 属性を設定する
+- Domain 属性が設定されると、ブラウザはサブドメインを含む広い範囲で Cookie を共有しようとする
+- しかし、`api.magicspell.io` と `magicspell.io` のクロスオリジン CORS 環境では、Domain 属性のある Cookie が正しく保存されないケースがある
+- **Host-only Cookie**（Domain 属性なし）の方が、exact domain match のため CORS 環境で信頼性が高い
+
+### 解決策
+```bash
+# SESSION_COOKIE_DOMAIN 環境変数を削除
+flyctl secrets unset SESSION_COOKIE_DOMAIN --app spell-platform
+
+# マシンが停止したため再起動
+flyctl machine start 178175e6b44e18 --app spell-platform
+flyctl machine start 3d8d1d24f1d268 --app spell-platform
+```
+
+### 検証結果
+chrome-devtools-mcp で OAuth フロー全体をテスト:
+1. ✅ `https://api.magicspell.io/auth/github` にアクセス
+2. ✅ GitHub 認証完了
+3. ✅ `https://magicspell.io/dashboard` へリダイレクト成功
+4. ✅ `/auth/me` が 200 OK を返す:
+```json
+{
+  "authenticated": true,
+  "user": {
+    "id": "781cc64e-0b8d-46d9-b924-771a4dc10304",
+    "github_login": "NishizukaKoichi",
+    "github_name": "KOICHI NISHIZUKA"
+  }
+}
+```
+
+### 技術的教訓
+- **Host-only Cookie の優位性**: CORS 環境では Domain 属性なしの Cookie の方が確実
+- **環境変数の影響**: コードレベルで正しくても、環境変数が予期しない動作を引き起こす可能性
+- **段階的デバッグ**: `.append_header()` 修正は正しかったが、環境設定の問題が隠れていた
+
+### コミット
+- Git commit ID: （環境変数削除のため該当なし）
+- Fly.io deployment: 自動更新（secrets unset により両マシン再デプロイ）
