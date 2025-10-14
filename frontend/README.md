@@ -37,13 +37,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 Create a `.env.local` file:
 
 ```env
-NEXT_PUBLIC_API_URL=https://spell-platform.fly.dev
+# Production: Uses relative paths through Cloudflare Worker reverse proxy
+# No NEXT_PUBLIC_API_BASE needed - defaults to same origin
+
+# For local backend development:
+NEXT_PUBLIC_API_BASE=http://localhost:8080
 ```
 
-For local backend development:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8080
-```
+**Production Setup**: The frontend uses relative paths (e.g., `/api/*`, `/auth/*`) which are routed through the Cloudflare Worker reverse proxy to the appropriate backends. No additional configuration is needed for production.
 
 ## Project Structure
 

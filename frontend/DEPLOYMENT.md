@@ -1,11 +1,24 @@
 # Spell Platform Frontend - Deployment Guide
 
-This guide explains how to deploy the Caster Web UI (Next.js) to Vercel with the API on Fly.io.
+This guide explains how to deploy the Caster Web UI (Next.js) to Vercel with Cloudflare Workers as a reverse proxy to the Fly.io backend.
+
+## Architecture
+
+The platform uses a **unified single-domain architecture**:
+
+```
+magicspell.io/api/*  → Fly.io (Rust backend)
+magicspell.io/auth/* → Fly.io (OAuth endpoints)
+magicspell.io/*      → Vercel (Next.js frontend)
+```
+
+This eliminates cross-domain cookie issues and simplifies CORS configuration.
 
 ## Prerequisites
 
-- Vercel account
-- Domain `magicspell.io` registered
+- Cloudflare account (for reverse proxy and DNS)
+- Vercel account (for frontend hosting)
+- Domain `magicspell.io` registered and managed in Cloudflare
 - Fly.io API already deployed at `spell-platform.fly.dev`
 - GitHub OAuth App configured
 - Stripe account set up
@@ -27,83 +40,82 @@ vercel domains add magicspell.io
 
 Follow Vercel's instructions to verify domain ownership.
 
-### 1.3 Configure DNS (via Vercel)
+### 1.3 Configure DNS (via Cloudflare)
 
-1. Update your domain registrar's NS records to Vercel's nameservers (provided in Vercel dashboard)
-2. Vercel will automatically configure:
-   - A/AAAA records for apex (`magicspell.io`)
-   - CNAME for www (will redirect to apex via `vercel.json`)
+**Important**: The domain must be managed in Cloudflare (not Vercel) for the reverse proxy to work.
+
+1. Update your domain registrar's NS records to Cloudflare's nameservers (provided in Cloudflare dashboard)
+2. In Vercel dashboard, set the nameservers to Cloudflare's nameservers
+3. The Cloudflare Worker will handle routing - no A/CNAME records needed in Vercel
 
 ### 1.4 Set Environment Variables
 
 ```bash
-# Production API endpoint
-vercel env add NEXT_PUBLIC_API_BASE
-# → Enter: https://api.magicspell.io
-
-# GitHub OAuth
-vercel env add GITHUB_CLIENT_ID
-# → Enter your production GitHub OAuth Client ID
-
-vercel env add GITHUB_CLIENT_SECRET
-# → Enter your production GitHub OAuth Client Secret
-
-# Stripe
+# Stripe (for payment processing)
 vercel env add STRIPE_PUBLISHABLE_KEY
 # → Enter: pk_live_...
 
 vercel env add STRIPE_SECRET_KEY
 # → Enter: sk_live_...
 
-# NextAuth (if using)
-vercel env add NEXTAUTH_URL
-# → Enter: https://magicspell.io
-
-vercel env add NEXTAUTH_SECRET
-# → Enter: Generated via `openssl rand -base64 32`
+# No NEXT_PUBLIC_API_BASE needed - the frontend uses relative paths
+# which are routed through the Cloudflare Worker reverse proxy
 ```
 
-## 2. Fly.io API Configuration
+## 2. Cloudflare Workers Setup
 
-### 2.1 Create Certificate for API Subdomain
+### 2.1 Deploy the Reverse Proxy Worker
 
 ```bash
-flyctl certs create api.magicspell.io -a spell-platform
+cd cloudflare-proxy
+npm install
+npx wrangler login
+npm run deploy
 ```
 
-### 2.2 Get Fly.io App Hostname
+### 2.2 Configure Workers Route in Cloudflare Dashboard
+
+1. Go to Cloudflare Dashboard → Workers & Pages
+2. Select your worker: `spell-platform-proxy`
+3. Go to Settings → Triggers
+4. Add a route: `magicspell.io/*`
+5. Ensure the route is assigned to the correct zone
+
+### 2.3 Verify Worker Configuration
+
+Check that `wrangler.toml` has the correct origins:
+
+```toml
+[vars]
+API_ORIGIN = "https://spell-platform.fly.dev"
+FRONTEND_ORIGIN = "https://spell-caster-magicspell.vercel.app"
+```
+
+### 2.4 Test Routing
 
 ```bash
-flyctl status -a spell-platform
+# Test API routing
+curl -I https://magicspell.io/api/healthz
+
+# Test frontend routing
+curl -I https://magicspell.io/
 ```
 
-Note the hostname (e.g., `spell-platform.fly.dev`)
-
-### 2.3 Add DNS CNAME via Vercel
-
-```bash
-vercel dns add magicspell.io api CNAME spell-platform.fly.dev
-```
-
-### 2.4 Verify Certificate
-
-```bash
-flyctl certs show api.magicspell.io -a spell-platform
-```
-
-Wait for status to show "Ready"
+See `cloudflare-proxy/README.md` for detailed configuration.
 
 ## 3. GitHub OAuth Configuration
 
 Update your GitHub OAuth App settings:
 
 - **Homepage URL**: `https://magicspell.io`
-- **Authorization callback URL**: `https://magicspell.io/api/auth/callback/github`
+- **Authorization callback URL**: `https://magicspell.io/auth/github/callback`
+
+Note: The callback URL is now on the unified domain and will be routed through the Cloudflare Worker to Fly.io.
 
 ## 4. Stripe Webhook Configuration
 
 1. Go to [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks)
-2. Add endpoint: `https://api.magicspell.io/v1/webhooks/stripe`
+2. Add endpoint: `https://magicspell.io/v1/webhooks/stripe`
 3. Select events:
    - `checkout.session.completed`
    - `customer.subscription.created`
@@ -158,24 +170,29 @@ After confirming stable production:
 
 ## 7. Verification
 
-### 7.1 Test CORS Preflight
+### 7.1 Test Worker Routing to Backend
 
 ```bash
-curl -i https://api.magicspell.io/v1/health \
-  -H "Origin: https://magicspell.io" \
-  -H "Access-Control-Request-Method: GET"
+# Test health endpoint (should route to Fly.io)
+curl -i https://magicspell.io/api/healthz
+
+# Test metrics endpoint
+curl https://magicspell.io/metrics
 ```
 
-Expected: 200 OK with CORS headers
+Expected: 200 OK responses from the Rust backend
 
-### 7.2 Test Actual Request
+### 7.2 Test Worker Routing to Frontend
 
 ```bash
-curl -i https://api.magicspell.io/v1/health \
-  -H "Origin: https://magicspell.io"
+# Test homepage (should route to Vercel)
+curl -I https://magicspell.io/
+
+# Test login page
+curl -I https://magicspell.io/login
 ```
 
-Expected: CORS headers including exposed rate limit headers
+Expected: 200 OK responses from Next.js
 
 ### 7.3 Test Security Headers
 
@@ -190,17 +207,19 @@ Verify presence of:
 - `Referrer-Policy`
 - `Permissions-Policy`
 
-### 7.4 Test Stripe Webhook (Locally)
+### 7.4 Test Stripe Webhook
 
 ```bash
 stripe trigger payment_intent.succeeded \
-  --webhook-endpoint https://api.magicspell.io/v1/webhooks/stripe
+  --webhook-endpoint https://magicspell.io/v1/webhooks/stripe
 ```
 
 Check Fly.io logs for successful processing:
 ```bash
 flyctl logs -a spell-platform
 ```
+
+The webhook request will be routed through the Cloudflare Worker to Fly.io.
 
 ## 8. Monitoring
 
@@ -237,21 +256,24 @@ flyctl releases rollback -a spell-platform <version>
 
 ### Domain not resolving
 
-- Check NS records point to Vercel
-- Verify DNS propagation: `dig magicspell.io`
+- Check NS records point to Cloudflare (not Vercel)
+- Verify DNS propagation: `dig NS magicspell.io`
+- Ensure Cloudflare Worker route is active: `magicspell.io/*`
 - Allow up to 48 hours for global DNS propagation
 
-### CORS errors in browser
+### Routing errors (404 on /api/* or /auth/*)
 
-- Verify API CORS configuration includes `https://magicspell.io`
-- Check browser console for specific error messages
-- Ensure cookies/credentials are properly configured
+- Verify Worker is deployed: Check Cloudflare Dashboard → Workers & Pages
+- Verify Worker route is configured: `magicspell.io/*` → `spell-platform-proxy`
+- Check Worker logs in Cloudflare Dashboard
+- Test Worker directly: `curl -I https://magicspell.io/api/healthz`
 
-### Certificate errors
+### Cookie/authentication issues
 
-- Run `flyctl certs check api.magicspell.io -a spell-platform`
-- Verify CNAME record exists and points to Fly.io hostname
-- Wait for certificate validation (can take a few minutes)
+- Ensure backend Cookie settings are: `SameSite=Lax`, `Domain=.magicspell.io`
+- Verify GitHub OAuth callback URL is: `https://magicspell.io/auth/github/callback`
+- Check browser DevTools → Application → Cookies
+- Clear Cloudflare cache if cookies seem stale
 
 ### Environment variables not working
 
@@ -272,16 +294,18 @@ flyctl releases rollback -a spell-platform <version>
 
 ## 12. Post-Deployment Checklist
 
-- [ ] Domain resolves to Vercel
-- [ ] API subdomain resolves to Fly.io
+- [ ] NS records point to Cloudflare nameservers
+- [ ] Cloudflare Worker is deployed and active
+- [ ] Worker route `magicspell.io/*` is configured
+- [ ] Frontend routes correctly to Vercel
+- [ ] API routes (`/api/*`, `/auth/*`) correctly route to Fly.io
 - [ ] GitHub OAuth flow works end-to-end
+- [ ] Cookies are set with correct domain (`.magicspell.io`)
 - [ ] Stripe checkout works
 - [ ] Stripe webhooks are processed
-- [ ] CORS preflight succeeds
 - [ ] Security headers are present
 - [ ] CSP doesn't block required resources
-- [ ] Rate limiting works and headers are exposed
-- [ ] SSL certificates are valid
+- [ ] SSL certificates are valid (Cloudflare manages this)
 - [ ] Monitoring and alerts are configured
 - [ ] Backups are enabled (database)
 - [ ] Documentation is updated

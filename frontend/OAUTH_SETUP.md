@@ -9,9 +9,9 @@
 3. Fill in:
    - **Application name**: Spell
    - **Homepage URL**: `https://magicspell.io`
-   - **Authorization callback URL**: `https://api.magicspell.io/auth/github/callback`
+   - **Authorization callback URL**: `https://magicspell.io/auth/github/callback`
 
-   ⚠️ **Important**: The callback URL must point to the **backend API** (api.magicspell.io), not the frontend.
+   ⚠️ **Important**: The callback URL uses the unified domain (magicspell.io), which routes through Cloudflare Workers to the backend API.
    This is because the Rust backend handles OAuth authentication directly, not NextAuth.
    The path MUST be `/auth/github/callback` (with `/github/` in the middle).
 
@@ -44,15 +44,19 @@ flyctl secrets list -a spell-platform
 1. Visit https://magicspell.io/login
 2. Click "Sign in with GitHub"
 3. You should be redirected to:
-   - `https://api.magicspell.io/auth/github` (backend initiates OAuth)
+   - `https://magicspell.io/auth/github` (routed to backend via Cloudflare Worker)
    - GitHub authorization page
-   - `https://api.magicspell.io/auth/github/callback` (backend receives callback)
+   - `https://magicspell.io/auth/github/callback` (routed to backend, backend receives callback)
    - `https://magicspell.io/dashboard` (frontend after successful auth)
 
 ⚠️ **Common Issues:**
-- If stuck at "You are being redirected to the authorized application", check that the GitHub callback URL is **exactly** `https://api.magicspell.io/auth/github/callback`
-- If you get HTTP 404 at callback, the path is wrong - it MUST include `/github/` in the middle
+- If stuck at "You are being redirected to the authorized application", check that the GitHub callback URL is **exactly** `https://magicspell.io/auth/github/callback`
+- If you get HTTP 404 at callback, verify:
+  - Cloudflare Worker is deployed and routing `/auth/*` to Fly.io
+  - The path MUST include `/github/` in the middle
+  - Backend route is defined correctly
 - Verify backend logs: `flyctl logs -a spell-platform`
+- Check Worker logs in Cloudflare Dashboard
 
 ## Stripe Integration
 
@@ -76,7 +80,7 @@ flyctl secrets set STRIPE_SECRET_KEY=sk_live_your_secret_key -a spell-platform
 
 1. Go to https://dashboard.stripe.com/webhooks
 2. Click "Add endpoint"
-3. Endpoint URL: `https://api.magicspell.io/v1/webhooks/stripe`
+3. Endpoint URL: `https://magicspell.io/v1/webhooks/stripe`
 4. Select events:
    - `checkout.session.completed`
    - `customer.subscription.created`
@@ -97,8 +101,10 @@ flyctl secrets set STRIPE_SECRET_KEY=sk_live_your_secret_key -a spell-platform
 If using Stripe Checkout, update `connect-src` in `next.config.ts`:
 
 ```typescript
-"connect-src 'self' https://api.magicspell.io https://api.stripe.com https://m.stripe.network",
+"connect-src 'self' https://api.stripe.com https://m.stripe.network",
 ```
+
+Note: `'self'` now covers API calls since they use relative paths routed through Cloudflare Worker.
 
 ## Verification
 
@@ -120,7 +126,7 @@ stripe login
 
 # Test webhook
 stripe trigger payment_intent.succeeded \
-  --webhook-endpoint https://api.magicspell.io/v1/webhooks/stripe
+  --webhook-endpoint https://magicspell.io/v1/webhooks/stripe
 ```
 
 Check Fly.io logs:
@@ -128,14 +134,16 @@ Check Fly.io logs:
 flyctl logs -a spell-platform | grep webhook
 ```
 
+The webhook will be routed through the Cloudflare Worker to the backend.
+
 ## Environment Variables Summary
 
 ### Vercel (Frontend)
-- `NEXT_PUBLIC_API_BASE` ✅ (set to `https://api.magicspell.io`)
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` ⏳ (add when ready)
 
-⚠️ **Note**: `NEXTAUTH_*` variables are NOT needed because this project doesn't use NextAuth.
-OAuth is handled by the Rust backend API.
+⚠️ **Note**:
+- No `NEXT_PUBLIC_API_BASE` needed - uses relative paths through Cloudflare Worker
+- `NEXTAUTH_*` variables are NOT needed - OAuth is handled by the Rust backend
 
 ### Fly.io (Backend) - spell-platform
 - `DATABASE_URL` ✅ (already set)
@@ -157,12 +165,14 @@ OAuth is handled by the Rust backend API.
 ## Troubleshooting
 
 ### OAuth Redirect Mismatch / Stuck at "You are being redirected" / HTTP 404
-- **Most Common**: GitHub callback URL is wrong. It MUST be `https://api.magicspell.io/auth/github/callback` (with `/github/` in the path)
+- **Most Common**: GitHub callback URL is wrong. It MUST be `https://magicspell.io/auth/github/callback` (with `/github/` in the path)
 - Common mistake: Setting it to `/auth/callback` without the `/github/` part results in HTTP 404
+- Verify Cloudflare Worker is routing `/auth/*` to Fly.io backend
 - Backend route is defined as: `.service(web::resource("/auth/github/callback")...)`
 - Check backend logs: `flyctl logs -a spell-platform`
+- Check Worker logs in Cloudflare Dashboard
 - Verify `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `GITHUB_REDIRECT_URI` are set correctly in Fly.io
-- Test backend endpoint: `curl -I https://api.magicspell.io/auth/github` (should return 302 with correct redirect_uri parameter)
+- Test backend endpoint: `curl -I https://magicspell.io/auth/github` (should return 302 with correct redirect_uri parameter)
 
 ### Stripe Webhook Failures
 - Check webhook signing secret is correct

@@ -8,14 +8,27 @@ A C2C (Creator-to-Consumer) platform for distributing and executing WASM-based w
 
 ## Architecture
 
-- **Backend**: Rust + Actix-web
+- **Backend**: Rust + Actix-web (Fly.io)
+- **Frontend**: Next.js 14 (Vercel)
+- **Reverse Proxy**: Cloudflare Workers (unified domain)
 - **Runtime**: WASM (wasmtime)
 - **Database**: PostgreSQL (Fly.io)
 - **Cache**: Redis (Fly.io)
 - **Auth**: GitHub OAuth
 - **Payments**: Stripe
 - **Metrics**: Prometheus
-- **Deployment**: Fly.io
+
+### Domain Architecture
+
+The platform uses a **single-domain architecture** with Cloudflare Workers as a reverse proxy:
+
+```
+magicspell.io/api/*  → Fly.io (Rust backend)
+magicspell.io/auth/* → Fly.io (OAuth endpoints)
+magicspell.io/*      → Vercel (Next.js frontend)
+```
+
+This architecture eliminates cross-domain cookie issues and simplifies CORS configuration.
 
 ## Features
 
@@ -137,7 +150,7 @@ flyctl secrets set \
   REDIS_URL=redis://... \
   GITHUB_CLIENT_ID=xxx \
   GITHUB_CLIENT_SECRET=xxx \
-  GITHUB_REDIRECT_URI=https://api.magicspell.io/auth/github/callback \
+  GITHUB_REDIRECT_URI=https://magicspell.io/auth/github/callback \
   STRIPE_SECRET_KEY=sk_live_xxx \
   STRIPE_WEBHOOK_SECRET=whsec_xxx \
   COST_PER_CAST_CENTS=1
@@ -154,13 +167,46 @@ flyctl proxy 15432:5432 -a spell-platform-db &
 psql -h localhost -p 15432 -U spell_platform -d spell_platform -f migrations/0004_billing.sql
 ```
 
+### Cloudflare Workers Setup
+
+The reverse proxy requires additional setup:
+
+```bash
+# 1. Deploy the Worker
+cd cloudflare-proxy
+npm install
+npm run deploy
+
+# 2. Configure DNS in Cloudflare Dashboard
+# - Point magicspell.io to the Worker via a Workers Route
+# - Set Proxy status to "Proxied" (orange cloud)
+# - Update nameservers in your domain registrar to Cloudflare's nameservers
+
+# 3. Verify routing
+curl -I https://magicspell.io/api/healthz  # Should route to Fly.io
+curl -I https://magicspell.io/            # Should route to Vercel
+```
+
+See `cloudflare-proxy/README.md` for detailed instructions.
+
+### Frontend Deployment
+
+The Next.js frontend is deployed on Vercel:
+
+```bash
+cd frontend
+vercel --prod
+```
+
+**Important**: Set the domain nameservers to Cloudflare (not Vercel) to enable the reverse proxy.
+
 ## Testing
 
 ### Phase 2 E2E Tests
 
 ```bash
 # Get session token first via OAuth
-open https://spell-platform.fly.dev/auth/github
+open https://magicspell.io/auth/github
 
 # Export token
 export TOKEN=<your_session_token>
@@ -183,7 +229,7 @@ Tests cover:
 ### Prometheus Metrics
 
 ```bash
-curl https://spell-platform.fly.dev/metrics
+curl https://magicspell.io/metrics
 ```
 
 Available metrics:
