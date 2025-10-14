@@ -3,7 +3,7 @@
 export default function LoginPage() {
   const handleGitHubLogin = () => {
     // Redirect to backend GitHub OAuth endpoint
-    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io'}/auth/github`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE || ''}/auth/github`;
   };
 
   return (

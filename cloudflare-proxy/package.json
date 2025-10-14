@@ -1,0 +1,14 @@
+{
+  "name": "spell-platform-proxy",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for Spell Platform reverse proxy",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^3.90.0"
+  }
+}

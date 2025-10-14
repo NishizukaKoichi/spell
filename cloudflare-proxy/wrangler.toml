@@ -1,0 +1,12 @@
+name = "spell-platform-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[env.production]
+routes = [
+  { pattern = "magicspell.io/*", zone_name = "magicspell.io" }
+]
+
+[vars]
+API_ORIGIN = "https://spell-platform.fly.dev"
+FRONTEND_ORIGIN = "https://spell-caster-magicspell.vercel.app"

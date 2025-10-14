@@ -36,8 +36,7 @@ export default function CardSetupForm() {
 
       if (setupIntent && setupIntent.status === 'succeeded') {
         // Send payment method ID to backend
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || 'https://spell-platform.fly.dev';
+        const API_URL = process.env.NEXT_PUBLIC_API_BASE || '';
 
         const response = await fetch(`${API_URL}/payment-method`, {
           method: 'POST',

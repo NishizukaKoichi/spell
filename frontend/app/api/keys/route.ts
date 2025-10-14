@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://magicspell.io';
 
 export async function GET() {
   try {
