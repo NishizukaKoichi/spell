@@ -26,10 +26,7 @@ const fetcher = (url: string) =>
 export function useApiKeys() {
   const { data, error, isLoading, mutate } = useSWR<ApiKey[]>(
     `/api/keys`,
-    fetcher,
-    {
-      revalidateOnFocus: true,
-    }
+    fetcher
   );
 
   const createApiKey = async (name: string): Promise<CreateApiKeyResponse> => {

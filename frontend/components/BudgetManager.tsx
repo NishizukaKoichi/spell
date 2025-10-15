@@ -66,7 +66,8 @@ export default function BudgetManager() {
     }
   };
 
-  if (isLoading) {
+  // Show loading only on initial load
+  if (isLoading && !budget) {
     return (
       <div className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-lg font-semibold mb-4">Spending Limit</h2>

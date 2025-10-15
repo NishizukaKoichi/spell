@@ -34,8 +34,9 @@ export function useUsage() {
     '/api/usage',
     fetcher,
     {
-      refreshInterval: 30000, // Refresh every 30 seconds
-      revalidateOnFocus: true,
+      onError: () => {
+        // Silently handle 404 errors (usage endpoint not yet implemented)
+      },
     }
   );
 
@@ -51,10 +52,7 @@ export function useUsage() {
 export function usePaymentMethod() {
   const { data, error, isLoading, mutate } = useSWR<PaymentMethod | null>(
     '/api/payment-method',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    fetcher
   );
 
   return {

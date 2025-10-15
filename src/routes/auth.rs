@@ -17,7 +17,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/auth/github").route(web::get().to(github_login)))
         .service(web::resource("/auth/github/callback").route(web::get().to(github_callback)))
         .service(web::resource("/auth/me").route(web::get().to(get_session)))
-        .service(web::resource("/auth/logout").route(web::post().to(logout)));
+        .service(web::resource("/auth/logout").route(web::post().to(logout)))
+        .service(web::resource("/dev/login").route(web::post().to(dev_login)));
 }
 
 async fn github_login() -> HttpResponse {
@@ -323,4 +324,81 @@ fn build_session_cookie_deletion() -> Cookie<'static> {
     }
 
     builder.finish()
+}
+
+/// DEV ONLY: Create a test user session without GitHub OAuth
+/// Set ENABLE_DEV_LOGIN=1 to enable this endpoint
+async fn dev_login(state: web::Data<AppState>) -> HttpResponse {
+    // Only allow in dev mode
+    let dev_enabled = env::var("ENABLE_DEV_LOGIN")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if !dev_enabled {
+        return HttpResponse::NotFound().finish();
+    }
+
+    log::warn!("⚠️  DEV LOGIN: Creating test user session (ONLY FOR DEVELOPMENT)");
+
+    // Upsert test user
+    let user: User = match sqlx::query_as::<_, User>(
+        r#"
+        INSERT INTO users (github_id, github_login, github_name, github_email, github_avatar_url, updated_at)
+        VALUES (99999999, 'devuser', 'Dev User', 'dev@example.com', 'https://avatars.githubusercontent.com/u/0', NOW())
+        ON CONFLICT (github_id) DO UPDATE SET
+            updated_at = NOW()
+        RETURNING *
+        "#,
+    )
+    .fetch_one(&state.db)
+    .await
+    {
+        Ok(user) => user,
+        Err(e) => {
+            log::error!("Failed to create dev user: {e}");
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to create test user"
+            }));
+        }
+    };
+
+    // Create session
+    let session_token = generate_session_token();
+    let expires_at = Utc::now() + Duration::days(30);
+
+    match sqlx::query(
+        r#"
+        INSERT INTO sessions (user_id, token, expires_at)
+        VALUES ($1, $2, $3)
+        "#,
+    )
+    .bind(user.id)
+    .bind(&session_token)
+    .bind(expires_at)
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Failed to create dev session: {e}");
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to create session"
+            }));
+        }
+    };
+
+    log::info!("✅ Dev user session created: {}", user.github_login);
+
+    let cookie = build_session_cookie(&session_token);
+
+    HttpResponse::Ok()
+        .append_header((header::SET_COOKIE, cookie.to_string()))
+        .json(serde_json::json!({
+            "status": "logged_in",
+            "user": {
+                "id": user.id,
+                "github_login": user.github_login,
+                "github_name": user.github_name
+            }
+        }))
 }

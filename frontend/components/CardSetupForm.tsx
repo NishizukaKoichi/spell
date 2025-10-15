@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import { useRouter } from 'next/navigation';
 
-export default function CardSetupForm() {
+interface CardSetupFormProps {
+  onCancel?: () => void;
+}
+
+export default function CardSetupForm({ onCancel }: CardSetupFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -71,13 +75,25 @@ export default function CardSetupForm() {
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
-      >
-        {isProcessing ? 'Processing...' : 'Save Payment Method'}
-      </button>
+      <div className="flex gap-3">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isProcessing}
+            className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={!stripe || isProcessing}
+          className={`${onCancel ? 'flex-1' : 'w-full'} px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50`}
+        >
+          {isProcessing ? 'Processing...' : 'Save Payment Method'}
+        </button>
+      </div>
 
       <p className="text-xs text-muted-foreground text-center">
         Your payment information is securely processed by Stripe. We never see

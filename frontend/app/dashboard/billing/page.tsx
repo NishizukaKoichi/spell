@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CardSetupForm from '@/components/CardSetupForm';
@@ -14,31 +14,44 @@ const stripePromise = loadStripe(
 export default function BillingPage() {
   const { paymentMethod, isLoading: isLoadingPaymentMethod } = usePaymentMethod();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSetupIntent, setIsLoadingSetupIntent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardForm, setShowCardForm] = useState(false);
 
-  const handleStartSetup = async () => {
-    setIsLoading(true);
-    setError(null);
+  // Auto-fetch setup intent when user wants to add/update card
+  useEffect(() => {
+    if (!showCardForm) return;
 
-    try {
-      const response = await fetch('/api/billing/setup-intent', {
-        method: 'POST',
-        credentials: 'include',
-      });
+    const fetchSetupIntent = async () => {
+      setIsLoadingSetupIntent(true);
+      setError(null);
 
-      if (!response.ok) {
-        throw new Error('Failed to create setup intent');
+      try {
+        const response = await fetch('/api/billing/setup-intent', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to create setup intent');
+        }
+
+        const data = await response.json();
+        if (!data.client_secret) {
+          throw new Error('No client_secret returned from server');
+        }
+        setClientSecret(data.client_secret);
+      } catch (err) {
+        console.error('Setup intent error:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setIsLoadingSetupIntent(false);
       }
+    };
 
-      const data = await response.json();
-      setClientSecret(data.client_secret);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    fetchSetupIntent();
+  }, [showCardForm]);
 
   return (
     <div className="space-y-6">
@@ -52,9 +65,9 @@ export default function BillingPage() {
       <div className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
 
-        {isLoadingPaymentMethod ? (
+        {isLoadingPaymentMethod && paymentMethod === undefined ? (
           <div className="text-sm text-muted-foreground">Loading payment method...</div>
-        ) : paymentMethod && !clientSecret ? (
+        ) : paymentMethod && !showCardForm ? (
           <div>
             <div className="flex items-center gap-4 p-4 rounded-md bg-secondary/50">
               <div className="flex-1">
@@ -66,39 +79,61 @@ export default function BillingPage() {
                 </div>
               </div>
               <button
-                onClick={handleStartSetup}
-                disabled={isLoading}
-                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                onClick={() => setShowCardForm(true)}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
               >
-                {isLoading ? 'Loading...' : 'Update Card'}
+                Update Card
               </button>
             </div>
             {error && (
               <p className="mt-2 text-sm text-destructive">{error}</p>
             )}
           </div>
-        ) : !clientSecret ? (
+        ) : !showCardForm ? (
           <div>
             <p className="text-sm text-muted-foreground mb-4">
               Add a payment method to start using the Spell API. You
               will be charged based on your usage.
             </p>
             <button
-              onClick={handleStartSetup}
-              disabled={isLoading}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              onClick={() => setShowCardForm(true)}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
-              {isLoading ? 'Loading...' : 'Add Payment Method'}
+              Add Payment Method
             </button>
             {error && (
               <p className="mt-2 text-sm text-destructive">{error}</p>
             )}
           </div>
-        ) : (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <CardSetupForm />
+        ) : isLoadingSetupIntent ? (
+          <div className="text-sm text-muted-foreground">
+            Preparing payment form...
+          </div>
+        ) : error ? (
+          <div>
+            <p className="text-sm text-destructive mb-4">{error}</p>
+            <button
+              onClick={() => {
+                setShowCardForm(false);
+                setError(null);
+              }}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : clientSecret ? (
+          <Elements
+            stripe={stripePromise}
+            options={{ clientSecret }}
+            key={clientSecret}
+          >
+            <CardSetupForm onCancel={() => {
+              setShowCardForm(false);
+              setClientSecret(null);
+            }} />
           </Elements>
-        )}
+        ) : null}
       </div>
 
       <BudgetManager />

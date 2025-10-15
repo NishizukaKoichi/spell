@@ -30,6 +30,7 @@ pub struct CreateApiKeyResponse {
 pub struct ListApiKeyResponse {
     pub id: Uuid,
     pub name: String,
+    pub prefix: String,
     pub created_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
 }

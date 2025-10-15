@@ -106,12 +106,12 @@ async fn main() -> std::io::Result<()> {
             .configure(routes::auth::configure)
             .configure(routes::gdpr::config)
             .configure(routes::admin::configure)
+            .configure(routes::keys::configure)
+            .configure(routes::budgets::configure)
             .service(
                 web::scope("/v1")
                     .configure(routes::cast::configure)
-                    .configure(routes::keys::configure)
-                    .configure(routes::billing::configure)
-                    .configure(routes::budgets::configure),
+                    .configure(routes::billing::configure),
             )
     })
     .bind(("0.0.0.0", 8080))?

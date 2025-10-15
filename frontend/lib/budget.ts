@@ -26,10 +26,7 @@ const fetcher = (url: string) =>
 export function useBudget() {
   const { data, error, isLoading, mutate } = useSWR<Budget | null>(
     '/api/budgets',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    fetcher
   );
 
   const updateBudget = async (

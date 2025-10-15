@@ -111,6 +111,7 @@ async fn list_api_keys(
         .map(|k| ListApiKeyResponse {
             id: k.id,
             name: k.name,
+            prefix: k.prefix,
             created_at: k.created_at,
             last_used_at: k.last_used_at,
         })
@@ -237,6 +238,7 @@ async fn list_api_keys_cookie(
         .map(|k| ListApiKeyResponse {
             id: k.id,
             name: k.name,
+            prefix: k.prefix,
             created_at: k.created_at,
             last_used_at: k.last_used_at,
         })

@@ -12,16 +12,19 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
     cfg.service(
         web::scope("/billing")
-            .wrap(auth)
-            .route("/checkout", web::post().to(create_checkout_session)),
+            .service(
+                web::resource("/checkout")
+                    .route(web::post().to(create_checkout_session))
+                    .wrap(auth)
+            )
+            .route("/setup-intent", web::post().to(create_setup_intent))
+            .service(
+                web::resource("/payment-method")
+                    .route(web::post().to(attach_payment_method))
+                    .route(web::get().to(get_payment_method))
+            )
+            .route("/usage", web::get().to(get_usage_cookie))
     )
-    .service(web::resource("/setup-intent").route(web::post().to(create_setup_intent)))
-    .service(
-        web::resource("/payment-method")
-            .route(web::post().to(attach_payment_method))
-            .route(web::get().to(get_payment_method)),
-    )
-    .service(web::resource("/usage").route(web::get().to(get_usage_cookie)))
     .service(web::resource("/webhooks/stripe").route(web::post().to(stripe_webhook)));
 }
 
@@ -89,13 +92,16 @@ async fn create_setup_intent(
     }
 
     // Create or get Stripe customer
+    log::info!("Attempting to get/create customer for user: {}", user.id);
     let customer_id = stripe_service
         .get_or_create_customer(&state.db, user.id)
         .await
         .map_err(|e| {
-            log::error!("Failed to get/create customer: {e}");
+            log::error!("Failed to get/create customer: {e:?}");
+            log::error!("Error chain: {:?}", e.chain().collect::<Vec<_>>());
             actix_web::error::ErrorInternalServerError("Failed to create customer")
         })?;
+    log::info!("Successfully got/created customer: {}", customer_id);
 
     // Create SetupIntent
     let setup_intent = stripe_service

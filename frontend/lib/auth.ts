@@ -30,8 +30,8 @@ export function useAuth() {
     '/api/auth/me',
     fetcher,
     {
-      revalidateOnFocus: false,
       shouldRetryOnError: false,
+      revalidateOnMount: true, // Always check auth on mount
     }
   );
 

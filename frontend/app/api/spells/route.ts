@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://magicspell.io";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://api.magicspell.io";
 
 const SpellsSchema = z.array(
   z.object({

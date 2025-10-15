@@ -15,12 +15,19 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // Route API requests to Fly.io
+    // Route frontend API routes to Vercel (Next.js API Routes)
+    if (url.pathname.startsWith('/api/auth/') ||
+        url.pathname.startsWith('/api/budgets') ||
+        url.pathname.startsWith('/api/keys')) {
+      return proxyToFrontend(request, env.FRONTEND_ORIGIN);
+    }
+
+    // Route other API requests to Fly.io (Rust backend)
     if (url.pathname.startsWith('/api/') || url.pathname === '/api') {
       return proxyToAPI(request, env.API_ORIGIN);
     }
 
-    // Route auth endpoints to Fly.io
+    // Route backend auth endpoints to Fly.io
     if (url.pathname.startsWith('/auth/')) {
       return proxyToAPI(request, env.API_ORIGIN);
     }

@@ -6,7 +6,8 @@ export default function UsageDisplay() {
   const { usage, isLoading: usageLoading } = useUsage();
   const { paymentMethod, isLoading: pmLoading } = usePaymentMethod();
 
-  if (usageLoading || pmLoading) {
+  // Show loading only on initial load
+  if ((usageLoading && !usage) || (pmLoading && paymentMethod === undefined)) {
     return (
       <div className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-lg font-semibold mb-4">Usage & Billing</h2>
@@ -15,6 +16,7 @@ export default function UsageDisplay() {
     );
   }
 
+  // Default to $0 usage if backend doesn't return usage data yet
   const totalCost = usage?.total_cost_cents ?? 0;
   const hardLimit = usage?.hard_limit_cents ?? 5000; // Default $50
   const usagePercentage = hardLimit > 0 ? (totalCost / hardLimit) * 100 : 0;

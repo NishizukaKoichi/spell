@@ -37,12 +37,12 @@ pub fn verify_api_key(provided: &str, hash: &str) -> Result<bool, anyhow::Error>
 }
 
 pub fn extract_prefix(api_key: &str) -> Option<String> {
-    // Extract prefix (e.g., "sk_live_")
-    if api_key.starts_with("sk_") {
-        let parts: Vec<&str> = api_key.splitn(3, '_').collect();
-        if parts.len() >= 2 {
-            return Some(format!("{}_{}_", parts[0], parts[1]));
-        }
+    // Extract prefix - first 15 characters for key identification (e.g., "sk_live_Cu7Jm1d")
+    if api_key.starts_with("sk_") && api_key.len() >= 15 {
+        return Some(api_key[..15].to_string());
+    } else if api_key.starts_with("sk_") {
+        // Fallback if key is shorter than expected
+        return Some(api_key.to_string());
     }
     None
 }

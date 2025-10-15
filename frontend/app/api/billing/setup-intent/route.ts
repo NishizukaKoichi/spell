@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://magicspell.io';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.magicspell.io';
 
 export async function POST() {
   try {
@@ -25,6 +25,11 @@ export async function POST() {
 
     if (!res.ok) {
       const body = await res.text();
+      console.error('Backend error response:', {
+        status: res.status,
+        statusText: res.statusText,
+        body: body.slice(0, 500)
+      });
       return NextResponse.json(
         { error: 'Failed to create setup intent', detail: body.slice(0, 500) },
         { status: 502 }
