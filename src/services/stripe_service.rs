@@ -272,19 +272,14 @@ impl StripeService {
                             );
                         } else {
                             log::info!(
-                                "Reusing existing Stripe customer {} for user {} (livemode: {})",
-                                customer_id,
-                                user_id,
-                                livemode
+                                "Reusing existing Stripe customer {customer_id} for user {user_id} (livemode: {livemode})"
                             );
                             return Ok(customer_id);
                         }
                     }
                     Err(err) if is_missing_customer_error(&err) => {
                         log::warn!(
-                            "Stored Stripe customer {} for user {} not found in current Stripe environment; creating new customer",
-                            customer_id,
-                            user_id
+                            "Stored Stripe customer {customer_id} for user {user_id} not found in current Stripe environment; creating new customer"
                         );
                     }
                     Err(err) => {
@@ -293,9 +288,7 @@ impl StripeService {
                 },
                 Err(_) => {
                     log::warn!(
-                        "Invalid Stripe customer id '{}' stored for user {}; creating new customer",
-                        customer_id,
-                        user_id
+                        "Invalid Stripe customer id '{customer_id}' stored for user {user_id}; creating new customer"
                     );
                 }
             }
