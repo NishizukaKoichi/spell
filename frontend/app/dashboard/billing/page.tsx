@@ -150,17 +150,36 @@ export default function BillingPage() {
             </button>
           </div>
         ) : clientSecret ? (
-          <Elements
-            stripe={stripePromise}
-            options={{ clientSecret }}
-            key={clientSecret}
-          >
-            <CardSetupForm onCancel={() => {
-              setShowCardForm(false);
-              setClientSecret(null);
-            }} />
-          </Elements>
-        ) : null}
+          <div>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-4 p-2 bg-yellow-100 text-yellow-900 text-xs rounded">
+                <div>Dev Mode: Using mock client_secret: {clientSecret.substring(0, 20)}...</div>
+                <div>Stripe Key: {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? 'Set' : 'Missing'}</div>
+              </div>
+            )}
+            {stripePromise ? (
+              <Elements
+                stripe={stripePromise}
+                options={{ clientSecret }}
+                key={clientSecret}
+              >
+                <CardSetupForm onCancel={() => {
+                  setShowCardForm(false);
+                  setClientSecret(null);
+                }} />
+              </Elements>
+            ) : (
+              <div className="text-sm text-destructive">Stripe not loaded - check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            {process.env.NODE_ENV === 'development' && (
+              <div>Debug: isLoading={String(isLoadingSetupIntent)}, error={String(!!error)}, clientSecret={String(!!clientSecret)}</div>
+            )}
+            No form to display
+          </div>
+        )}
       </div>
 
       <BudgetManager />
