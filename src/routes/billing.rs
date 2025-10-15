@@ -15,15 +15,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/checkout")
                     .route(web::post().to(create_checkout_session))
-                    .wrap(auth)
+                    .wrap(auth),
             )
             .route("/setup-intent", web::post().to(create_setup_intent))
             .service(
                 web::resource("/payment-method")
                     .route(web::post().to(attach_payment_method))
-                    .route(web::get().to(get_payment_method))
+                    .route(web::get().to(get_payment_method)),
             )
-            .route("/usage", web::get().to(get_usage_cookie))
+            .route("/usage", web::get().to(get_usage_cookie)),
     )
     .service(web::resource("/webhooks/stripe").route(web::post().to(stripe_webhook)));
 }
@@ -101,7 +101,7 @@ async fn create_setup_intent(
             log::error!("Error chain: {:?}", e.chain().collect::<Vec<_>>());
             actix_web::error::ErrorInternalServerError("Failed to create customer")
         })?;
-    log::info!("Successfully got/created customer: {}", customer_id);
+    log::info!("Successfully got/created customer: {customer_id}");
 
     // Create SetupIntent
     let setup_intent = stripe_service
