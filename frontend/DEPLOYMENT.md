@@ -52,7 +52,8 @@ Follow Vercel's instructions to verify domain ownership.
 
 ```bash
 # Stripe (for payment processing)
-vercel env add STRIPE_PUBLISHABLE_KEY
+# NOTE: NEXT_PUBLIC_ prefix is REQUIRED for browser-side access
+vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 # → Enter: pk_live_...
 
 vercel env add STRIPE_SECRET_KEY

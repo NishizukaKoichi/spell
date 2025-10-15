@@ -103,6 +103,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(metrics_data.clone())
             .route("/healthz", web::get().to(healthz))
             .configure(routes::metrics::configure)
+            .configure(routes::debug::configure)
             .configure(routes::auth::configure)
             .configure(routes::gdpr::config)
             .configure(routes::admin::configure)

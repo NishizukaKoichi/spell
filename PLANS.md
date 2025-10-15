@@ -1366,3 +1366,91 @@ chrome-devtools-mcp で OAuth フロー全体をテスト:
 ### コミット
 - Git commit ID: （環境変数削除のため該当なし）
 - Fly.io deployment: 自動更新（secrets unset により両マシン再デプロイ）
+
+### 2025-10-15 - Stripe PaymentElement フォーム未表示問題の解決 🔧
+
+- **報告**: ユーザーが「今ストライプでクレカ登録しようとしてもカード番号入力フォームが出てこない」
+- **調査プロセス**:
+  1. フロントエンドコード確認: `/app/dashboard/billing/page.tsx:11` で `process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` を使用
+  2. ドキュメント確認: `frontend/.env.example:9` と `frontend/DEPLOYMENT.md:55` で誤った環境変数名 `STRIPE_PUBLISHABLE_KEY` を記載
+  3. Next.js環境変数命名規則: **ブラウザ側でアクセス可能な変数は `NEXT_PUBLIC_` プレフィックスが必須**
+
+- **根本原因**:
+  - **誤**: `STRIPE_PUBLISHABLE_KEY` (ドキュメント記載)
+  - **正**: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (コード実装)
+  - Vercelに誤った名前で環境変数が設定されているため、`stripePromise` が null となり `PaymentElement` が描画されない
+
+- **修正内容**:
+  1. **frontend/.env.example**:
+     - `STRIPE_PUBLISHABLE_KEY` → `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+     - コメント追加: "NOTE: NEXT_PUBLIC_ prefix is REQUIRED for browser-side access"
+  2. **frontend/DEPLOYMENT.md**:
+     - Line 56: `vercel env add STRIPE_PUBLISHABLE_KEY` → `vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+     - 説明コメント追加
+
+- **影響範囲**:
+  - `frontend/.env.example:9-11, 21` - 環境変数名とコメント修正
+  - `frontend/DEPLOYMENT.md:55-56` - デプロイ手順修正
+  - Vercel環境変数設定（要手動修正 - HITL必須）
+
+- **次アクション（HITL必須）**:
+  1. Vercelダッシュボードで誤った環境変数を削除:
+     ```bash
+     vercel env rm STRIPE_PUBLISHABLE_KEY production
+     ```
+  2. 正しい環境変数を追加:
+     ```bash
+     vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY production
+     # → Enter: pk_live_...（Stripeダッシュボードから取得）
+     ```
+  3. Vercelで再デプロイ:
+     ```bash
+     cd frontend
+     vercel --prod
+     ```
+  4. 本番環境で動作確認:
+     - `https://magicspell.io/dashboard/billing` にアクセス
+     - 「Add Payment Method」クリック
+     - Stripe PaymentElement（カード入力フォーム）が表示されることを確認
+
+- **仕様根拠**:
+  - §22.2 "Billing accounts MUST stay in sync with Stripe customer lifecycle"
+  - Next.js公式ドキュメント: Environment Variables - `NEXT_PUBLIC_` prefix for browser exposure
+
+---
+
+### 2025-10-13 22:05 - Stripe SetupIntent 失敗（テスト/Livemode齟齬）を解消 🔧
+
+- **問題**: `POST /v1/billing/setup-intent` が 500 → 「Failed to create setup intent」でカード登録フローが停止
+- **原因分析**:
+  - DBに保存されていた `stripe_customer_id` がテストモードで発行された `cus_` を保持
+  - 本番（livemode）シークレットキーでSetupIntentを生成すると `No such customer` エラーとなり 500
+  - 仕様書 §22.2 *"Billing accounts MUST stay in sync with Stripe customer lifecycle"*（docs/spec/Spell-Platform_v1.4.0.md）に抵触
+- **対応**:
+  - `StripeService::get_or_create_customer` で既存IDをStripe API経由で検証
+  - `404 / resource_missing / livemode_mismatch` を検知した場合はログ出力のうえで新規Customerを発行し直す
+  - `is_missing_customer_error` ヘルパとユニットテストを追加（テストで仕様の再現性担保）
+- **検証**:
+  - `SQLX_OFFLINE=1 cargo test --workspace --all-features`（19.7s）→ 新規追加テスト含め全緑
+  - ログ確認で既存customer再利用時は livemode をINFO出力（再発検知用）
+- **次アクション**:
+  - Stripeダッシュボード/フロントのカード登録フローで再テスト（要HITL）
+  - 既存 `billing_accounts` 行は自動更新されるが、不要なら手動でテストデータ整理も検討
+
+### 2025-10-13 22:40 - Stripeデバッグ導線の整備 & SetupIntentログ強化 🩺
+
+- **新設エンドポイント**:
+  - `GET /debug/stripe/self` → 現行シークレットの `account_id` とキー種別、指定ユーザーの `stripe_customer_id` 実在性をJSON確認
+  - `GET /debug/stripe/doctor` → 指定ユーザーのCustomer同期 → SetupIntent試行 → 成否・エラー要約（`SetupIntentFailure`）を返す
+- **サーバーログ強化**:
+  - `StripeService::create_setup_intent` で `status/code/message` を構造化ログ化（`setup_intent_create_failed`）
+  - SetupIntent生成パラメータを `automatic_payment_methods.enabled=true` に統一しPaymentElement期待値と一致
+- **レスポンス改善**:
+  - `/v1/billing/setup-intent` 失敗時に `stripe_status / stripe_code / stripe_message` を返却（フロントで即時表示 & Stripe Logs 検索を補助）
+- **仕様根拠**:
+  - §22.2 *"Billing accounts MUST stay in sync with Stripe customer lifecycle"*（customer検証の自動化）
+  - §26.2 *Observability & Debug Interfaces*（診断用エンドポイント・構造化ログ）
+- **テスト**: `SQLX_OFFLINE=1 cargo test --workspace --all-features`
+- **次アクション**:
+  - `/debug/stripe/doctor?user=<uuid>` で live鍵＋顧客整合性をHITL確認
+  - ログから `setup_intent_create_failed ... code=...` を基に Stripe Dashboard Logs をトレース

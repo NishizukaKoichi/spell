@@ -1,8 +1,10 @@
+use serde::Serialize;
 use stripe::{
     CheckoutSession, CheckoutSessionMode, Client, CreateCheckoutSession,
     CreateCheckoutSessionLineItems, CreateInvoice, CreateInvoiceItem, CreatePrice,
-    CreatePriceRecurring, CreateSetupIntent, Currency, Customer, EventObject, EventType, Invoice,
-    InvoiceItem, PaymentMethod, Price, SetupIntent, Webhook,
+    CreatePriceRecurring, CreateSetupIntent, CreateSetupIntentAutomaticPaymentMethods, Currency,
+    Customer, ErrorCode, EventObject, EventType, Invoice, InvoiceItem, PaymentMethod, Price,
+    SetupIntent, Webhook,
 };
 use uuid::Uuid;
 
@@ -40,6 +42,10 @@ impl StripeService {
 
     pub fn is_enabled(&self) -> bool {
         self.client.is_some()
+    }
+
+    pub fn clone_client(&self) -> Option<Client> {
+        self.client.clone()
     }
 
     pub async fn create_checkout_session(
@@ -218,19 +224,74 @@ impl StripeService {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
 
-        // Check if customer already exists in DB
-        let existing: Option<(String,)> = sqlx::query_as(
+        // Detect current Stripe mode from secret key
+        let secret_key = std::env::var("STRIPE_SECRET_KEY")
+            .map_err(|_| anyhow::anyhow!("STRIPE_SECRET_KEY not set"))?;
+        let is_live_mode = secret_key.starts_with("sk_live_");
+
+        log::debug!(
+            "Stripe mode: {}",
+            if is_live_mode { "LIVE" } else { "TEST" }
+        );
+
+        // Check mode-specific customer ID first, fallback to legacy column
+        let existing: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
             r#"
-            SELECT stripe_customer_id FROM billing_accounts
-            WHERE user_id = $1 AND stripe_customer_id IS NOT NULL
+            SELECT stripe_customer_id, stripe_customer_id_live, stripe_customer_id_test
+            FROM billing_accounts
+            WHERE user_id = $1
             "#,
         )
         .bind(user_id)
         .fetch_optional(db)
         .await?;
 
-        if let Some((customer_id,)) = existing {
-            return Ok(customer_id);
+        let customer_id_option = if let Some((legacy, live_col, test_col)) = existing {
+            if is_live_mode {
+                live_col.or(legacy.clone()) // Prefer live column, fallback to legacy
+            } else {
+                test_col.or(legacy) // Prefer test column, fallback to legacy
+            }
+        } else {
+            None
+        };
+
+        if let Some(customer_id) = customer_id_option {
+            match customer_id.parse::<stripe::CustomerId>() {
+                Ok(parsed_id) => match Customer::retrieve(client, &parsed_id, &[]).await {
+                    Ok(customer) => {
+                        let livemode = customer.livemode.unwrap_or(false);
+
+                        // Verify mode consistency
+                        if livemode != is_live_mode {
+                            log::warn!(
+                                "Mode mismatch: customer {} is in {} mode but API key is {} mode; creating new customer",
+                                customer_id,
+                                if livemode { "LIVE" } else { "TEST" },
+                                if is_live_mode { "LIVE" } else { "TEST" }
+                            );
+                        } else {
+                            log::info!(
+                                "Reusing existing Stripe customer {customer_id} for user {user_id} (livemode: {livemode})"
+                            );
+                            return Ok(customer_id);
+                        }
+                    }
+                    Err(err) if is_missing_customer_error(&err) => {
+                        log::warn!(
+                            "Stored Stripe customer {customer_id} for user {user_id} not found in current Stripe environment; creating new customer"
+                        );
+                    }
+                    Err(err) => {
+                        return Err(err.into());
+                    }
+                },
+                Err(_) => {
+                    log::warn!(
+                        "Invalid Stripe customer id '{customer_id}' stored for user {user_id}; creating new customer"
+                    );
+                }
+            }
         }
 
         // Get user info for customer creation
@@ -259,25 +320,44 @@ impl StripeService {
         let customer = Customer::create(client, params).await?;
         let customer_id = customer.id.to_string();
 
-        // Save to database
-        sqlx::query(
-            r#"
-            INSERT INTO billing_accounts (user_id, stripe_customer_id, plan, status)
-            VALUES ($1, $2, 'free', 'active')
-            ON CONFLICT (user_id) DO UPDATE SET
-                stripe_customer_id = EXCLUDED.stripe_customer_id,
-                updated_at = NOW()
-            "#,
-        )
-        .bind(user_id)
-        .bind(&customer_id)
-        .execute(db)
-        .await?;
+        // Dual-write: Save to both mode-specific column AND legacy column (for backward compatibility)
+        if is_live_mode {
+            sqlx::query(
+                r#"
+                INSERT INTO billing_accounts (user_id, stripe_customer_id, stripe_customer_id_live, plan, status)
+                VALUES ($1, $2, $2, 'free', 'active')
+                ON CONFLICT (user_id) DO UPDATE SET
+                    stripe_customer_id = EXCLUDED.stripe_customer_id,
+                    stripe_customer_id_live = EXCLUDED.stripe_customer_id_live,
+                    updated_at = NOW()
+                "#,
+            )
+            .bind(user_id)
+            .bind(&customer_id)
+            .execute(db)
+            .await?;
+        } else {
+            sqlx::query(
+                r#"
+                INSERT INTO billing_accounts (user_id, stripe_customer_id, stripe_customer_id_test, plan, status)
+                VALUES ($1, $2, $2, 'free', 'active')
+                ON CONFLICT (user_id) DO UPDATE SET
+                    stripe_customer_id = EXCLUDED.stripe_customer_id,
+                    stripe_customer_id_test = EXCLUDED.stripe_customer_id_test,
+                    updated_at = NOW()
+                "#,
+            )
+            .bind(user_id)
+            .bind(&customer_id)
+            .execute(db)
+            .await?;
+        }
 
         log::info!(
-            "Created Stripe customer {} for user {}",
+            "Created Stripe customer {} for user {} (mode: {})",
             customer_id,
-            user.github_login
+            user.github_login,
+            if is_live_mode { "LIVE" } else { "TEST" }
         );
 
         Ok(customer_id)
@@ -287,19 +367,31 @@ impl StripeService {
     pub async fn create_setup_intent(
         &self,
         customer_id: &str,
-    ) -> Result<SetupIntent, anyhow::Error> {
+    ) -> Result<SetupIntent, SetupIntentFailure> {
         let client = self
             .client
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+            .ok_or_else(SetupIntentFailure::configuration)?;
+
+        let parsed_customer = customer_id
+            .parse::<stripe::CustomerId>()
+            .map_err(|_| SetupIntentFailure::invalid_customer_id(customer_id))?;
 
         let mut params = CreateSetupIntent::new();
-        params.customer = Some(customer_id.parse()?);
-        params.payment_method_types = Some(vec!["card".to_string()]);
+        params.customer = Some(parsed_customer);
+        params.automatic_payment_methods = Some(CreateSetupIntentAutomaticPaymentMethods {
+            enabled: true,
+            allow_redirects: None,
+        });
 
-        let setup_intent = SetupIntent::create(client, params).await?;
-
-        Ok(setup_intent)
+        match SetupIntent::create(client, params).await {
+            Ok(setup_intent) => Ok(setup_intent),
+            Err(err) => {
+                let failure = SetupIntentFailure::from_stripe_error(&err);
+                log_stripe_error("setup_intent_create_failed", &failure, &err);
+                Err(failure)
+            }
+        }
     }
 
     /// Attach a payment method to a customer
@@ -387,5 +479,128 @@ impl StripeService {
         let finalized = Invoice::finalize(client, &invoice.id, Default::default()).await?;
 
         Ok(finalized)
+    }
+}
+
+fn is_missing_customer_error(err: &stripe::StripeError) -> bool {
+    match err {
+        stripe::StripeError::Stripe(request_error) => {
+            if request_error.http_status == 404 {
+                return true;
+            }
+
+            matches!(
+                request_error.code,
+                Some(ErrorCode::ResourceMissing)
+                    | Some(ErrorCode::LivemodeMismatch)
+                    | Some(ErrorCode::TestmodeChargesOnly)
+            ) || request_error
+                .message
+                .as_ref()
+                .map(|msg| msg.to_lowercase().contains("no such customer"))
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
+fn log_stripe_error(context: &str, failure: &SetupIntentFailure, err: &stripe::StripeError) {
+    log::error!(
+        "{context} status={:?} code={:?} msg={:?} request_id={:?} source={}",
+        failure.status,
+        failure.code,
+        failure.message,
+        failure.request_id,
+        err
+    );
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SetupIntentFailure {
+    pub status: Option<u16>,
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub request_id: Option<String>,
+}
+
+impl SetupIntentFailure {
+    fn configuration() -> Self {
+        Self {
+            status: None,
+            code: Some("configuration_error".to_string()),
+            message: Some("Stripe not configured".to_string()),
+            request_id: None,
+        }
+    }
+
+    fn invalid_customer_id(customer_id: &str) -> Self {
+        Self {
+            status: None,
+            code: Some("invalid_customer_id".to_string()),
+            message: Some(format!("Invalid Stripe customer id: {customer_id}")),
+            request_id: None,
+        }
+    }
+
+    fn from_stripe_error(err: &stripe::StripeError) -> Self {
+        match err {
+            stripe::StripeError::Stripe(request_error) => Self {
+                status: Some(request_error.http_status),
+                code: request_error.code.as_ref().map(|c| c.to_string()),
+                message: request_error.message.clone(),
+                request_id: None,
+            },
+            _ => Self {
+                status: None,
+                code: Some("client_error".to_string()),
+                message: Some(err.to_string()),
+                request_id: None,
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_stripe_error(
+        http_status: u16,
+        error_type: stripe::ErrorType,
+        code: Option<ErrorCode>,
+        message: Option<&str>,
+    ) -> stripe::StripeError {
+        stripe::StripeError::Stripe(stripe::RequestError {
+            http_status,
+            error_type,
+            message: message.map(ToString::to_string),
+            code,
+            decline_code: None,
+            charge: None,
+        })
+    }
+
+    #[test]
+    fn detects_missing_customer_via_status_and_code() {
+        let err = make_stripe_error(
+            404,
+            stripe::ErrorType::InvalidRequest,
+            Some(ErrorCode::ResourceMissing),
+            Some("No such customer: 'cus_test123'"),
+        );
+
+        assert!(is_missing_customer_error(&err));
+    }
+
+    #[test]
+    fn ignores_unrelated_stripe_errors() {
+        let err = make_stripe_error(
+            400,
+            stripe::ErrorType::InvalidRequest,
+            Some(ErrorCode::ParameterMissing),
+            Some("Missing required param: customer"),
+        );
+
+        assert!(!is_missing_customer_error(&err));
     }
 }

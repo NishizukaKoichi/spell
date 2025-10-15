@@ -69,8 +69,8 @@ flyctl secrets list -a spell-platform
 ### 2. Add Environment Variables
 
 ```bash
-# Frontend (Publishable Key)
-echo "pk_live_your_publishable_key" | vercel env add STRIPE_PUBLISHABLE_KEY production
+# Frontend (Publishable Key - MUST have NEXT_PUBLIC_ prefix for browser access)
+echo "pk_live_your_publishable_key" | vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY production
 
 # Backend (Secret Key via Fly.io)
 flyctl secrets set STRIPE_SECRET_KEY=sk_live_your_secret_key -a spell-platform
@@ -93,7 +93,7 @@ flyctl secrets set STRIPE_SECRET_KEY=sk_live_your_secret_key -a spell-platform
 5. Copy the **Signing secret** (starts with `whsec_`)
 6. Add to Fly.io:
    ```bash
-   flyctl secrets set WEBHOOK_SIGNING_SECRET=whsec_your_signing_secret -a spell-platform
+   flyctl secrets set STRIPE_WEBHOOK_SECRET=whsec_your_signing_secret -a spell-platform
    ```
 
 ### 4. Update CSP for Stripe
