@@ -79,10 +79,14 @@ async fn dev_create_setup_intent(
     let dev_user_id_str = std::env::var("DEV_MODE_USER_ID")
         .map_err(|_| actix_web::error::ErrorServiceUnavailable("DEV_MODE_USER_ID not set"))?;
 
-    let dev_user_id: uuid::Uuid = dev_user_id_str.parse()
-        .map_err(|_| actix_web::error::ErrorInternalServerError("Invalid DEV_MODE_USER_ID (must be UUID)"))?;
+    let dev_user_id: uuid::Uuid = dev_user_id_str.parse().map_err(|_| {
+        actix_web::error::ErrorInternalServerError("Invalid DEV_MODE_USER_ID (must be UUID)")
+    })?;
 
-    log::warn!("🚧 DEV MODE: Creating setup intent for user_id={}", dev_user_id);
+    log::warn!(
+        "🚧 DEV MODE: Creating setup intent for user_id={}",
+        dev_user_id
+    );
 
     let user = sqlx::query_as::<_, User>(
         r#"SELECT id, github_id, github_login, github_name, github_email, github_avatar_url, created_at, updated_at FROM users WHERE id = $1"#
