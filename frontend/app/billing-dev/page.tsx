@@ -48,12 +48,14 @@ export default function BillingPage() {
         setClientSecret(data.client_secret);
       } catch (err) {
         console.error('Setup intent error:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
 
         // Development mode: Allow testing UI without backend
         if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ Using mock client_secret for development. PaymentElement will not work.');
           setClientSecret('seti_mock_' + Math.random().toString(36).substr(2, 9));
+          // Don't set error in dev mode
+        } else {
+          setError(err instanceof Error ? err.message : 'An error occurred');
         }
       } finally {
         setIsLoadingSetupIntent(false);
@@ -136,7 +138,7 @@ export default function BillingPage() {
           <div className="text-sm text-muted-foreground">
             Preparing payment form...
           </div>
-        ) : error ? (
+        ) : error && process.env.NODE_ENV !== 'development' ? (
           <div>
             <p className="text-sm text-destructive mb-4">{error}</p>
             <button
@@ -150,17 +152,36 @@ export default function BillingPage() {
             </button>
           </div>
         ) : clientSecret ? (
-          <Elements
-            stripe={stripePromise}
-            options={{ clientSecret }}
-            key={clientSecret}
-          >
-            <CardSetupForm onCancel={() => {
-              setShowCardForm(false);
-              setClientSecret(null);
-            }} />
-          </Elements>
-        ) : null}
+          <div>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-4 p-2 bg-yellow-100 text-yellow-900 text-xs rounded">
+                <div>Dev Mode: Using mock client_secret: {clientSecret.substring(0, 20)}...</div>
+                <div>Stripe Key: {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? 'Set' : 'Missing'}</div>
+              </div>
+            )}
+            {stripePromise ? (
+              <Elements
+                stripe={stripePromise}
+                options={{ clientSecret }}
+                key={clientSecret}
+              >
+                <CardSetupForm onCancel={() => {
+                  setShowCardForm(false);
+                  setClientSecret(null);
+                }} />
+              </Elements>
+            ) : (
+              <div className="text-sm text-destructive">Stripe not loaded - check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            {process.env.NODE_ENV === 'development' && (
+              <div>Debug: isLoading={String(isLoadingSetupIntent)}, error={String(!!error)}, clientSecret={String(!!clientSecret)}</div>
+            )}
+            No form to display
+          </div>
+        )}
       </div>
 
       <BudgetManager />

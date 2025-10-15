@@ -3,35 +3,49 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+  const isDev = process.env.NODE_ENV === 'development';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Production mode: use auth
   const { user, isAuthenticated, isLoading, isError, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    // Skip in dev mode
+    if (isDev) return;
+
     if (!isLoading && (isError || !isAuthenticated)) {
       router.push('/login');
     }
-  }, [isLoading, isError, isAuthenticated, router]);
+  }, [isLoading, isError, isAuthenticated, router, isDev]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+  // In dev mode, skip auth checks
+  if (!isDev) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (!isAuthenticated) {
-    return null;
+    if (!isAuthenticated) {
+      return null;
+    }
   }
 
   return (
@@ -72,22 +86,28 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {user?.github_avatar_url && (
-                <img
-                  src={user.github_avatar_url}
-                  alt={user.github_login}
-                  className="w-8 h-8 rounded-full"
-                />
+              {isDev ? (
+                <span className="text-sm font-medium text-yellow-600">Dev Mode</span>
+              ) : (
+                <>
+                  {user?.github_avatar_url && (
+                    <img
+                      src={user.github_avatar_url}
+                      alt={user.github_login}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm font-medium hidden md:inline">
+                    {user?.github_login}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="px-3 py-2 rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </>
               )}
-              <span className="text-sm font-medium hidden md:inline">
-                {user?.github_login}
-              </span>
-              <button
-                onClick={logout}
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-accent transition-colors"
-              >
-                Sign Out
-              </button>
             </div>
           </div>
         </div>
