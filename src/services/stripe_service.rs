@@ -229,7 +229,10 @@ impl StripeService {
             .map_err(|_| anyhow::anyhow!("STRIPE_SECRET_KEY not set"))?;
         let is_live_mode = secret_key.starts_with("sk_live_");
 
-        log::debug!("Stripe mode: {}", if is_live_mode { "LIVE" } else { "TEST" });
+        log::debug!(
+            "Stripe mode: {}",
+            if is_live_mode { "LIVE" } else { "TEST" }
+        );
 
         // Check mode-specific customer ID first, fallback to legacy column
         let existing: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(

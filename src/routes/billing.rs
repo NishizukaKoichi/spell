@@ -104,17 +104,21 @@ async fn create_setup_intent(
     log::info!("Successfully got/created customer: {customer_id}");
 
     // Create SetupIntent
-    let setup_intent = stripe_service
-        .create_setup_intent(&customer_id)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to create setup intent: {e}");
-            actix_web::error::ErrorInternalServerError("Failed to create setup intent")
-        })?;
-
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "client_secret": setup_intent.client_secret
-    })))
+    match stripe_service.create_setup_intent(&customer_id).await {
+        Ok(setup_intent) => Ok(HttpResponse::Ok().json(serde_json::json!({
+            "client_secret": setup_intent.client_secret
+        }))),
+        Err(failure) => {
+            let payload = serde_json::json!({
+                "error": "Failed to create setup intent",
+                "stripe_status": failure.status,
+                "stripe_code": failure.code,
+                "stripe_message": failure.message,
+                "stripe_request_id": failure.request_id,
+            });
+            Ok(HttpResponse::InternalServerError().json(payload))
+        }
+    }
 }
 
 async fn attach_payment_method(
