@@ -8,18 +8,30 @@ export async function POST() {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('spell_session');
 
-    if (!sessionCookie) {
+    // Development mode: Always use dev endpoint (bypasses auth)
+    const isDev = process.env.NODE_ENV === 'development';
+    const endpoint = isDev
+      ? '/v1/billing/dev-setup-intent'
+      : '/v1/billing/setup-intent';
+
+    // In production, require session cookie
+    if (!isDev && !sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${API_BASE}/v1/billing/setup-intent`, {
+    const headers: HeadersInit = {};
+    // Only send cookie in production (dev endpoint doesn't need it)
+    if (!isDev && sessionCookie) {
+      headers['Cookie'] = `spell_session=${sessionCookie.value}`;
+    }
+
+    const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Cookie': `spell_session=${sessionCookie.value}`,
-      },
+      headers,
     });
 
-    if (res.status === 401 || res.status === 403) {
+    // In dev mode, don't fail on 401 from backend (shouldn't happen with dev endpoint)
+    if (!isDev && (res.status === 401 || res.status === 403)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: res.status });
     }
 

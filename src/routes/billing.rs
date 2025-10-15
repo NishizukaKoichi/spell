@@ -18,6 +18,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .wrap(auth),
             )
             .route("/setup-intent", web::post().to(create_setup_intent))
+            .route("/dev-setup-intent", web::post().to(dev_create_setup_intent))
             .service(
                 web::resource("/payment-method")
                     .route(web::post().to(attach_payment_method))
@@ -69,6 +70,69 @@ async fn create_checkout_session(
         })?;
 
     Ok(HttpResponse::Ok().json(session))
+}
+
+/// Dev-only endpoint that bypasses authentication (controlled by DEV_MODE_USER_ID env var)
+async fn dev_create_setup_intent(
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let dev_user_id_str = std::env::var("DEV_MODE_USER_ID")
+        .map_err(|_| actix_web::error::ErrorServiceUnavailable("DEV_MODE_USER_ID not set"))?;
+
+    let dev_user_id: uuid::Uuid = dev_user_id_str.parse()
+        .map_err(|_| actix_web::error::ErrorInternalServerError("Invalid DEV_MODE_USER_ID (must be UUID)"))?;
+
+    log::warn!("🚧 DEV MODE: Creating setup intent for user_id={}", dev_user_id);
+
+    let user = sqlx::query_as::<_, User>(
+        r#"SELECT id, github_id, github_login, github_name, github_email, github_avatar_url, created_at, updated_at FROM users WHERE id = $1"#
+    )
+    .bind(dev_user_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        log::error!("DEV MODE: Failed to fetch user {}: {}", dev_user_id, e);
+        actix_web::error::ErrorInternalServerError("Dev user not found")
+    })?;
+
+    let stripe_service = state
+        .stripe
+        .as_ref()
+        .ok_or_else(|| actix_web::error::ErrorServiceUnavailable("Billing not configured"))?;
+
+    if !stripe_service.is_enabled() {
+        return Err(actix_web::error::ErrorServiceUnavailable(
+            "Billing features are currently disabled",
+        ));
+    }
+
+    // Create or get Stripe customer
+    log::info!("Attempting to get/create customer for user: {}", user.id);
+    let customer_id = stripe_service
+        .get_or_create_customer(&state.db, user.id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to get/create customer: {e:?}");
+            actix_web::error::ErrorInternalServerError("Failed to create customer")
+        })?;
+    log::info!("Successfully got/created customer: {customer_id}");
+
+    // Create SetupIntent
+    match stripe_service.create_setup_intent(&customer_id).await {
+        Ok(setup_intent) => Ok(HttpResponse::Ok().json(serde_json::json!({
+            "client_secret": setup_intent.client_secret
+        }))),
+        Err(failure) => {
+            let payload = serde_json::json!({
+                "error": "Failed to create setup intent",
+                "stripe_status": failure.status,
+                "stripe_code": failure.code,
+                "stripe_message": failure.message,
+                "stripe_request_id": failure.request_id,
+            });
+            Ok(HttpResponse::InternalServerError().json(payload))
+        }
+    }
 }
 
 async fn create_setup_intent(

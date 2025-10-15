@@ -138,6 +138,11 @@ impl StripeService {
                     self.handle_subscription_updated(subscription, db).await?;
                 }
             }
+            EventType::SetupIntentSucceeded => {
+                if let EventObject::SetupIntent(setup_intent) = event.data.object {
+                    self.handle_setup_intent_succeeded(setup_intent, db).await?;
+                }
+            }
             _ => {
                 log::info!("Unhandled webhook event type: {:?}", event.type_);
             }
@@ -209,6 +214,45 @@ impl StripeService {
         .bind(status)
         .execute(db)
         .await?;
+
+        Ok(())
+    }
+
+    async fn handle_setup_intent_succeeded(
+        &self,
+        setup_intent: SetupIntent,
+        db: &sqlx::PgPool,
+    ) -> Result<(), anyhow::Error> {
+        let customer_id = setup_intent
+            .customer
+            .ok_or_else(|| anyhow::anyhow!("No customer in SetupIntent"))?
+            .id()
+            .to_string();
+
+        let payment_method_id = setup_intent
+            .payment_method
+            .ok_or_else(|| anyhow::anyhow!("No payment method in SetupIntent"))?
+            .id()
+            .to_string();
+
+        log::info!(
+            "SetupIntent succeeded: customer={customer_id} payment_method={payment_method_id}"
+        );
+
+        // Update billing account with payment method
+        sqlx::query(
+            r#"
+            UPDATE billing_accounts
+            SET payment_method_id = $2, updated_at = NOW()
+            WHERE stripe_customer_id = $1
+            "#,
+        )
+        .bind(&customer_id)
+        .bind(&payment_method_id)
+        .execute(db)
+        .await?;
+
+        log::info!("Payment method {payment_method_id} saved for customer {customer_id}");
 
         Ok(())
     }

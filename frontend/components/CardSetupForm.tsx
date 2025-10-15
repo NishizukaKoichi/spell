@@ -39,25 +39,16 @@ export default function CardSetupForm({ onCancel }: CardSetupFormProps) {
       }
 
       if (setupIntent && setupIntent.status === 'succeeded') {
-        // Send payment method ID to backend
-        const response = await fetch('/api/billing/payment-method', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            payment_method_id: setupIntent.payment_method,
-          }),
-        });
+        // In development mode, webhook will handle payment method save
+        // In production, also rely on webhook
+        console.log('✅ SetupIntent succeeded:', setupIntent.id);
+        console.log('Payment method:', setupIntent.payment_method);
 
-        if (!response.ok) {
-          throw new Error('Failed to save payment method');
-        }
-
-        // Success! Refresh the page
-        router.refresh();
-        window.location.reload();
+        // Success! Refresh the page after a short delay to let webhook process
+        setTimeout(() => {
+          router.refresh();
+          window.location.reload();
+        }, 2000);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
