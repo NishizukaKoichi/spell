@@ -1,4 +1,4 @@
-# Spell Platform
+# Spell
 
 A C2C (Creator-to-Consumer) platform for distributing and executing WASM-based workflows via API.
 
@@ -266,5 +266,5 @@ Proprietary
 
 ## Support
 
-- GitHub Issues: https://github.com/NishizukaKoichi/spell-platform/issues
+- GitHub Issues: https://github.com/NishizukaKoichi/spell/issues
 - Email: koichi@example.com
