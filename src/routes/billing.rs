@@ -252,7 +252,7 @@ async fn attach_payment_method(
         r#"
         INSERT INTO budgets (user_id, period, hard_limit_cents, notify_thresholds_json)
         VALUES ($1, 'monthly', 5000, '[]')
-        ON CONFLICT (user_id, period) DO UPDATE SET
+        ON CONFLICT (user_id) DO UPDATE SET
             hard_limit_cents = EXCLUDED.hard_limit_cents,
             updated_at = NOW()
         "#,
