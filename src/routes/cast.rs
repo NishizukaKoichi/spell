@@ -1,5 +1,5 @@
 use crate::errors::CastError;
-use crate::models::{CastRequest, CastResponse, User};
+use crate::models::{CastRequest, CastResponse, Spell, User};
 use crate::services::budget_service::BudgetService;
 use crate::AppState;
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
@@ -40,17 +40,34 @@ async fn cast_spell(
 
     log::info!("Cast {cast_id} starting for spell: {spell_name} by user {user_id}");
 
-    // Insert initial record with user_id
+    // Fetch spell to get price
+    let spell: Option<Spell> = sqlx::query_as(
+        r#"
+        SELECT * FROM spells WHERE name = $1 AND is_active = true
+        "#,
+    )
+    .bind(spell_name)
+    .fetch_optional(&state.db)
+    .await?;
+
+    let spell = spell.ok_or_else(|| {
+        CastError::WasmExecutionFailed(format!("Spell '{}' not found or inactive", spell_name))
+    })?;
+
+    let cost_cents = spell.price_cents;
+
+    // Insert initial record with user_id and spell_id
     sqlx::query(
         r#"
-        INSERT INTO casts (id, spell_name, payload, status, user_id, created_at)
-        VALUES ($1, $2, $3, 'QUEUED', $4, NOW())
+        INSERT INTO casts (id, spell_name, payload, status, user_id, spell_id, created_at)
+        VALUES ($1, $2, $3, 'QUEUED', $4, $5, NOW())
         "#,
     )
     .bind(cast_id)
     .bind(spell_name)
     .bind(payload)
     .bind(user_id)
+    .bind(spell.id)
     .execute(&state.db)
     .await?;
 
@@ -72,12 +89,7 @@ async fn cast_spell(
 
             log::info!("Cast {cast_id} completed successfully");
 
-            // Record usage and cost
-            let cost_cents = std::env::var("COST_PER_CAST_CENTS")
-                .ok()
-                .and_then(|v| v.parse::<i32>().ok())
-                .unwrap_or(0);
-
+            // Record usage and cost based on spell price
             if cost_cents > 0 {
                 if let Err(e) =
                     BudgetService::record_usage(&user_id, cost_cents, &cast_id, &state.db).await

@@ -1,5 +1,6 @@
 pub mod apikey;
 pub mod billing;
+pub mod spell;
 pub mod user;
 
 use chrono::{DateTime, Utc};
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use apikey::{ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeyResponse};
+pub use spell::{CreateSpellRequest, Spell, SpellResponse};
 pub use user::{GitHubAccessTokenResponse, GitHubUser, Session, User};
 
 // Future implementation: Cast history tracking
