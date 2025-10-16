@@ -16,6 +16,7 @@ pub struct Spell {
     pub updated_at: DateTime<Utc>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct CreateSpellRequest {
     pub name: String,
@@ -23,6 +24,7 @@ pub struct CreateSpellRequest {
     pub price_cents: i32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 pub struct SpellResponse {
     pub id: Uuid,
