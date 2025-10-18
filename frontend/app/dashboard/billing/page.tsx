@@ -12,15 +12,43 @@ const stripePromise = loadStripe(
 );
 
 export default function BillingPage() {
-  const { paymentMethod, isLoading: isLoadingPaymentMethod } = usePaymentMethod();
+  const { paymentMethod, isLoading: isLoadingPaymentMethod, mutate: mutatePaymentMethod } = usePaymentMethod();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingSetupIntent, setIsLoadingSetupIntent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Development mode: Force show form for UI testing
   const isDev = process.env.NODE_ENV === 'development';
   const [devMode, setDevMode] = useState(false);
+
+  const handleDeletePaymentMethod = async () => {
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/billing/payment-method', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete payment method');
+      }
+
+      // Refresh payment method data
+      mutatePaymentMethod();
+      setShowDeleteConfirm(false);
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete payment method');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Auto-fetch setup intent when user wants to add/update card
   useEffect(() => {
@@ -97,23 +125,63 @@ export default function BillingPage() {
         ) : paymentMethod && !showCardForm ? (
           <div>
             <div className="flex items-center gap-4 p-4 rounded-md bg-secondary/50">
-              <div className="flex-1">
-                <div className="font-medium">
-                  {paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)} •••• {paymentMethod.last4}
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-12 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded flex items-center justify-center text-white font-bold text-sm">
+                  {paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1) === 'Visa' ? 'VISA' : paymentMethod.brand.toUpperCase().slice(0, 4)}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Expires {paymentMethod.exp_month}/{paymentMethod.exp_year}
+                <div>
+                  <div className="font-medium">
+                    {paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)} •••• {paymentMethod.last4}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Expires {paymentMethod.exp_month}/{paymentMethod.exp_year}
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => setShowCardForm(true)}
-                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
-              >
-                Update Card
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCardForm(true)}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
+                >
+                  Update
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-md hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
             {error && (
               <p className="mt-2 text-sm text-destructive">{error}</p>
+            )}
+
+            {showDeleteConfirm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                  <h3 className="text-lg font-semibold mb-2">Delete Payment Method?</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Are you sure you want to delete this payment method? You won&apos;t be able to use the Spell API until you add a new one.
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={isDeleting}
+                      className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeletePaymentMethod}
+                      disabled={isDeleting}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         ) : !showCardForm ? (
@@ -163,10 +231,17 @@ export default function BillingPage() {
                 options={{ clientSecret }}
                 key={clientSecret}
               >
-                <CardSetupForm onCancel={() => {
-                  setShowCardForm(false);
-                  setClientSecret(null);
-                }} />
+                <CardSetupForm
+                  onCancel={() => {
+                    setShowCardForm(false);
+                    setClientSecret(null);
+                  }}
+                  onSuccess={() => {
+                    // Close form and refresh payment method data
+                    setShowCardForm(false);
+                    setClientSecret(null);
+                  }}
+                />
               </Elements>
             ) : (
               <div className="text-sm text-destructive">Stripe not loaded - check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</div>

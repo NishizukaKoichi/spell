@@ -490,6 +490,21 @@ impl StripeService {
         Ok(payment_method)
     }
 
+    /// Detach payment method from customer
+    pub async fn detach_payment_method(
+        &self,
+        payment_method_id: &str,
+    ) -> Result<(), anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stripe not configured"))?;
+
+        PaymentMethod::detach(client, &payment_method_id.parse()?).await?;
+
+        Ok(())
+    }
+
     /// Create monthly invoice for a customer
     pub async fn create_monthly_invoice(
         &self,

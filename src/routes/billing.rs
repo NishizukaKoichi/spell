@@ -22,7 +22,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/payment-method")
                     .route(web::post().to(attach_payment_method))
-                    .route(web::get().to(get_payment_method)),
+                    .route(web::get().to(get_payment_method))
+                    .route(web::delete().to(delete_payment_method)),
             )
             .route("/usage", web::get().to(get_usage_cookie)),
     )
@@ -373,6 +374,76 @@ async fn get_payment_method(
         "last4": card.last4,
         "exp_month": card.exp_month,
         "exp_year": card.exp_year,
+    })))
+}
+
+/// Delete payment method (cookie authentication)
+async fn delete_payment_method(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = authenticate_from_cookie(&http_req, &state.db)
+        .await
+        .ok_or_else(|| actix_web::error::ErrorUnauthorized("Not authenticated"))?;
+
+    // Get billing account
+    let billing_account: Option<(String,)> = sqlx::query_as(
+        r#"
+        SELECT payment_method_id FROM billing_accounts WHERE user_id = $1
+        "#,
+    )
+    .bind(user.id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to fetch billing account: {e}");
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
+
+    let payment_method_id = match billing_account {
+        Some((pm_id,)) => pm_id,
+        None => {
+            return Ok(HttpResponse::NotFound().json(serde_json::json!({
+                "error": "No payment method configured"
+            })));
+        }
+    };
+
+    // Detach payment method from Stripe
+    let stripe_service = state
+        .stripe
+        .as_ref()
+        .ok_or_else(|| actix_web::error::ErrorServiceUnavailable("Billing not configured"))?;
+
+    stripe_service
+        .detach_payment_method(&payment_method_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to detach payment method from Stripe: {e}");
+            actix_web::error::ErrorInternalServerError("Failed to delete payment method")
+        })?;
+
+    // Remove from database
+    sqlx::query(
+        r#"
+        UPDATE billing_accounts
+        SET payment_method_id = NULL, updated_at = NOW()
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user.id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to remove payment method from database: {e}");
+        actix_web::error::ErrorInternalServerError("Failed to delete payment method")
+    })?;
+
+    log::info!("Payment method deleted for user {}", user.github_login);
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "success",
+        "message": "Payment method deleted successfully"
     })))
 }
 
